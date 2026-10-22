@@ -118,7 +118,7 @@ check_points() {
       if (f[3]=="")   { printf "[FAIL] 03 第%d数据行(%s): 类型为空\n", row, id; bad++ }
       if (f[4]=="")   { printf "[FAIL] 03 第%d数据行(%s): 分析方法为空\n", row, id; bad++ }
       if (f[5]=="")   { printf "[FAIL] 03 第%d数据行(%s): 依据为空\n", row, id; bad++ }
-      else if (match(f[5], /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
+      else if (match(f[5], /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}(-[A-Za-z]{2,5})?-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
         print substr(f[5], RSTART, RLENGTH) > tpanch
       } else {
         printf "[FAIL] 03 第%d数据行(%s): 依据缺锚点(需 M模块-S章节-P段落 或 PRD原文编号)\n", row, id; bad++
@@ -268,7 +268,7 @@ check_snapshot() {
         }
         if (n==-99 || n<5) next
         if (id !~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/) next
-        if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
+        if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}(-[A-Za-z]{2,5})?-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
           anc = substr(dep, RSTART, RLENGTH)
           if (anc in exc) {
             c = dep; gsub(/[[:space:]]/, "", c); gsub(/　/, "", c)
