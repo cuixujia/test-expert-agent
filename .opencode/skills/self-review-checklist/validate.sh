@@ -352,9 +352,27 @@ check_cases() {
     else
       pass "TC→TP 引用完整性校验通过"
     fi
-    UNCOVERED=$(comm -23 <(sort -u "$TPIDS") <(sort -u "$TCTPS") | tr '\n' ' ')
+    # TP 全覆盖豁免: 05 覆盖对照表显式声明未覆盖原因(非空且非「—」占位)的 TP 不计 FAIL(规则见 self-review-checklist)
+    EXEMPT=$(awk -F'|' '
+      /^## / { in_sec = (index($0, "覆盖对照表") > 0) }
+      in_sec && /^[[:space:]]*\|/ {
+        n=0; tp=""; exc=""
+        for (i=2; i<NF; i++) {
+          v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+          if (v ~ /^[-:]+$/) { n=-99; break }
+          n++
+          if (n==1) tp=v; else if (n==3) exc=v
+        }
+        if (n!=-99 && tp ~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/ && exc!="" && exc !~ /^(—|-)$/) print tp
+      }
+    ' "$C_FILE" | sort -u)
+    UNCOVERED_RAW=$(comm -23 <(sort -u "$TPIDS") <(sort -u "$TCTPS") | tr '\n' ' ')
+    UNCOVERED=$(printf '%s\n' $UNCOVERED_RAW | grep -v '^$' | comm -23 - <(printf '%s\n' "$EXEMPT" | grep -v '^$' | sort -u) | tr '\n' ' ')
+    EXEMPTED=$(printf '%s\n' $UNCOVERED_RAW | grep -v '^$' | sort -u | comm -12 - <(printf '%s\n' "$EXEMPT" | grep -v '^$' | sort -u) | tr '\n' ' ')
     if [ -n "${UNCOVERED//[[:space:]]/}" ]; then
-      fail "以下 TP 未被任何 TC 覆盖(须在覆盖对照表声明原因): $UNCOVERED"
+      fail "以下 TP 未被任何 TC 覆盖且未声明未覆盖原因: $UNCOVERED"
+    elif [ -n "${EXEMPTED//[[:space:]]/}" ]; then
+      pass "TP 全覆盖校验通过(未覆盖 TP 已显式声明原因: $EXEMPTED)"
     else
       pass "TP 全覆盖校验通过"
     fi
