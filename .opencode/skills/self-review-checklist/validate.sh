@@ -2,7 +2,7 @@
 # validate.sh — 测试设计产物硬校验（workspace 运行时结构，零依赖，bash 3.2 兼容）
 # 用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"   （阶段质检，禁止传 all）
 #       all 仅限人工调试: bash validate.sh "<会话目录>" all
-# 目录推导: 快照与底册同目录——会话目录(session-log)内取 scope.md 锚点底册与 prd.txt PRD 文本快照
+# 目录推导: 会话目录(session-log)内取 scope.md 锚点底册; 需求目录(上两级)取 functions.md 功能清单与 prd.txt 快照
 # 退出码: 0 = 全部通过; 1 = 存在 FAIL, 必须修复后重跑; 2 = 用法错误
 # 摘录逐字机验依赖 <prdId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 锚点规则 9)
 # 注意: macOS awk length() 按字节计数, 摘录长度校验用 wc -m
@@ -40,6 +40,7 @@ else
 fi
 
 S_FILE="$DIR/scope.md"
+F_FILE="$DIR/../../functions.md"
 P_FILE="$DIR/test-point.md"
 C_FILE="$DIR/test-case.md"
 
@@ -50,9 +51,9 @@ TPANCH="$TMPD/tp_anchors"  # test-point.md 主表依据列提取的锚点（每�
 : > "$TPIDS"; : > "$TCTPS"; : > "$TPANCH"
 trap 'rm -rf "$TMPD"' EXIT
 
-# ---- scope.md 功能清单结构校验（名称原文/编号/功能码）----
+# ---- functions.md 功能清单结构校验（名称原文/编号/功能码，全局注册表）----
 check_scope() {
-  if [ ! -f "$S_FILE" ]; then fail "缺少 $S_FILE"; return; fi
+  if [ ! -f "$F_FILE" ]; then fail "缺少 $F_FILE(功能清单注册表)"; return; fi
   OUT=$(awk -F'|' '
     function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
     /^[[:space:]]*\|/ && !done {
@@ -82,33 +83,33 @@ check_scope() {
       }
       if (n==-99) next
       row++
-      if (f[col["mname"]]=="") { printf "[FAIL] scope 功能清单第%d数据行: 模块名称为空\n", row; bad++ }
-      if (f[col["fname"]]=="") { printf "[FAIL] scope 功能清单第%d数据行: 功能名称为空\n", row; bad++ }
+      if (f[col["mname"]]=="") { printf "[FAIL] functions 功能清单第%d数据行: 模块名称为空\n", row; bad++ }
+      if (f[col["fname"]]=="") { printf "[FAIL] functions 功能清单第%d数据行: 功能名称为空\n", row; bad++ }
       c=f[col["code"]]
-      if (c=="") { printf "[FAIL] scope 功能清单第%d数据行: 功能码为空\n", row; bad++ }
-      else if (c !~ /^[A-Za-z0-9]{1,6}$/) { printf "[FAIL] scope 功能清单第%d数据行: 功能码格式非法: %s\n", row, c; bad++ }
-      else if (seen[c]++) { printf "[FAIL] scope 功能清单第%d数据行: 功能码重复: %s\n", row, c; bad++ }
+      if (c=="") { printf "[FAIL] functions 功能清单第%d数据行: 功能码为空\n", row; bad++ }
+      else if (c !~ /^[A-Za-z0-9]{1,6}$/) { printf "[FAIL] functions 功能清单第%d数据行: 功能码格式非法: %s\n", row, c; bad++ }
+      else if (seen[c]++) { printf "[FAIL] functions 功能清单第%d数据行: 功能码重复: %s\n", row, c; bad++ }
       if ("mno" in col) {
         m=f[col["mno"]]
-        if (m !~ /^M[0-9]{1,3}$/) { printf "[FAIL] scope 功能清单第%d数据行: 模块编号格式非法: %s\n", row, m; bad++ }
+        if (m !~ /^M[A-Za-z]{0,5}-?[0-9]{1,3}$/) { printf "[FAIL] functions 功能清单第%d数据行: 模块编号格式非法: %s\n", row, m; bad++ }
       }
       if ("fno" in col) {
         fn=f[col["fno"]]
-        if (fn !~ /^[A-Za-z]{1,4}-?[0-9]{1,4}$/) { printf "[FAIL] scope 功能清单第%d数据行: 功能编号格式非法: %s\n", row, fn; bad++ }
+        if (fn !~ /^[A-Za-z]{1,4}-?[0-9]{1,4}$/) { printf "[FAIL] functions 功能清单第%d数据行: 功能编号格式非法: %s\n", row, fn; bad++ }
       }
       next
     }
     !/^[[:space:]]*\|/ && hdr && !done { done=1 }
     END {
-      if (!hdr) { print "[FAIL] scope 缺少功能清单表(需含模块名称/功能名称/功能码列)"; bad++ }
-      else if (row==0) { print "[FAIL] scope 功能清单无数据行"; bad++ }
+      if (!hdr) { print "[FAIL] functions 缺少功能清单表(需含模块名称/功能名称/功能码列)"; bad++ }
+      else if (row==0) { print "[FAIL] functions 功能清单无数据行"; bad++ }
       exit (bad ? 1 : 0)
     }
-  ' "$S_FILE"); RC=$?
+  ' "$F_FILE"); RC=$?
   printf '%s\n' "$OUT"
   NF_=$(printf '%s\n' "$OUT" | grep -c '^\[FAIL\]')
   FAILS=$((FAILS + NF_))
-  [ "$RC" -eq 0 ] && pass "scope 功能清单结构校验通过"
+  [ "$RC" -eq 0 ] && pass "functions 功能清单结构校验通过（功能码全局唯一）"
 }
 
 # ---- test-point.md 行内校验（格式/唯一/必填/锚点）----
@@ -218,7 +219,7 @@ check_snapshot() {
     pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-quality-check 锚点规则 9)"
     return
   fi
-  SNAP="$DIR/prd.txt"
+  SNAP="$DIR/../../prd.txt"
   if [ ! -f "$SNAP" ]; then
     fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-quality-check 锚点规则 9)"
     return
@@ -407,7 +408,7 @@ check_cases() {
 }
 
 case "$TARGET" in
-  test-point.md) check_points; check_anchors; check_snapshot ;;
+  test-point.md) check_scope; check_points; check_anchors; check_snapshot ;;
   test-case.md)  extract_tpids; check_cases ;;
   *)             check_scope; check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
 esac

@@ -70,13 +70,13 @@
 | 职能三角分工 | 测试经理（primary：编排、门禁、状态、S1、S4/S5 与 S8/S9 合并确认、双向派发）+ 测试设计专家（subagent：S3/S7 生成与修复）+ 测试质检专家（subagent：S2/S4/S6/S8 质检，只检不修、不与用户交互） | 自己检自己走过场；生成者与质检者越权写文件 |
 | 文件写权限矩阵 | 会话目录内 state.md/scope.md/prd.txt 归测试经理，test-point.md/test-case.md 归设计 subagent（仅标题行状态字样可由经理变更），四份质检报告归质检 subagent；派发单「禁止修改项」按矩阵生成 | 职责交叉；越权写入无人发现 |
 | 生成派发单与会话复用 | 生成派发单必含材料路径（必须/可选标注）、skill 清单与写入授权；同一功能同一产物线默认复用 subagent 会话，会话失效即新开重发完整派发单 | subagent 缺材料凭空生成；会话中断后上下文丢失 |
-| 运行时目录 | `workspace/runtime_<项目>/assets/<prdId>/`（需求文档软链接，保留原文件名）→ `<functionId>/`（只读输入目录 + output/ 采纳产物）→ `session-log/`（自包含会话运行单元：input/ + prd.txt 快照 + scope.md 底册 + state.md 状态 + 六个过程产物）；结构契约见 `DESIGN/工作空间目录结构.md` | 输入与产物混放；流程文件散落功能级/需求级目录 |
+| 运行时目录 | `workspace/runtime_<项目>/assets/<prdId>/`（需求文档软链接 + functions.md 功能清单注册表 + prd.txt 快照，各功能共享）→ `<functionId>/`（只读输入目录 + output/ 采纳产物）→ `session-log/`（state.md 状态 + scope.md 底册 + input/ + 六个过程产物）；目录骨架由用户预先创建，agent 不建目录；结构契约见 `DESIGN/工作空间目录结构.md` | 输入与产物混放；功能码跨功能撞码 |
 | S3/S7 输入模型 | S3 必须=需求文档，S7 必须=开发设计文档；领域知识、历史测试点（tp-ddl.json）、历史测试用例（tc-ddl.json）、用户上传（session-log/input/）为可选——可选缺失注明「未提供」继续，必须缺失暂停请补充 | 可选材料缺失导致空转；必须材料缺失硬造 |
 | 派发单与越权核对 | 派发必含阶段与任务、路径、材料、skill、写入授权、报告路径、禁止修改项；收回必核「结论 + 实际写入文件列表 + validate.sh 退出码（S4/S8）」，写入超出授权清单即越权，暂停报告不回滚 | subagent 权限全开下的误写无人发现 |
 | 锚点 | PRD 原文的定位标记：PRD 自带编号就用原文编号，没有则按 `M<模块>-S<章节>-P<段落>` 生成 | 说不清验证的是 PRD 哪句话 |
 | 锚点底册 | 会话目录 scope.md 中的锚点清单表，全流程唯一溯源依据；S1 建立并验收后冻结（漏锚扫描确认补录为唯一例外） | 各阶段随手加锚、依据漂移 |
 | 引用链登记 | S1 逐条登记「目标功能各处引用了哪些其他功能、操作入口归谁」，作为 S2 的检索入口 | 跨功能引用被漏检 |
-| PRD 文本快照 | S1 用命令行工具把权威 PRD 转成纯文本落盘会话目录 `prd.txt`，禁止模型转写 | 模型转写改写原文 |
+| PRD 文本快照 | S1 用命令行工具把权威 PRD 转成纯文本落盘需求目录 `prd.txt`（各功能共用），禁止模型转写 | 模型转写改写原文 |
 | 摘录逐字机验 | validate.sh 校验底册摘录 ≤40 字且逐字命中快照（比对前去除多余空白），TP 依据含对应底册摘录 | 凭空编造依据 |
 | 版本指纹 | S1 登记权威 PRD 原文件 md5，每次开工重算比对 | PRD 被静默替换 |
 | PRD 版本锁定 | 权威 PRD 一经 S1 确定全流程锁定；S2 门禁仅支持澄清/补充说明（登记不落原件）；指纹不一致 → 暂停，用户二选一（恢复原 PRD / 从 S1 重新开始） | PRD 文件中途变更导致底册、快照、指纹整体失效 |
@@ -116,7 +116,7 @@ flowchart LR
 
 | 阶段 | 执行者 | 做什么 | 产出 | 门禁 |
 |---|---|---|---|---|
-| S1 目标确定 | 测试经理 | 用户输入项目名称 → 定位 `workspace/runtime_<项目>/assets/` 并检查 `<prdId>/` 需求目录（无则请用户提供需求文档建目录）→ 通读权威 PRD（officeTool 分页读完）→ 列功能清单（名称逐字引原文、拟功能码）→ 用户指定目标功能 → 建 session-log/ 会话目录 → 引用链登记 + 建锚点底册 → 生成快照、登记指纹 | session-log/（scope.md、state.md、prd.txt、input/） | 强确认：目标功能 |
+| S1 目标确定 | 测试经理 | 用户输入项目名称 → 定位 `workspace/runtime_<项目>/assets/`（目录骨架用户预建，缺失暂停请补充）→ 通读权威 PRD（officeTool 分页读完）→ 首次全量登记功能清单 functions.md（名称逐字引原文、拟功能码，之后冻结；已存在则沿用）→ 用户指定目标功能 → 引用链登记 + 建锚点底册（会话目录）→ 生成快照、登记指纹 | functions.md、需求目录 prd.txt、session-log/（scope.md、state.md、input/） | 强确认：目标功能 |
 | S2 PRD 质检 | 质检 subagent | 五维质检 + 矛盾矩阵比对 + 漏锚扫描（缺锚经确认补录，补录归测试经理） | prd-check.md | 强确认：问题处置（仅澄清/补充说明） |
 | S3 测试点识别 | 设计 subagent | 先广撒网列全覆盖维度，再按切分标准定成业务验证目标；承担 S4 产物级问题修复 | test-point.md 草稿 | 无：进质检 |
 | S4 测试点质检 | 质检 subagent | 语义关逐项核对 + 形式关跑脚本（test-point 参数） | tp-check.md → test-point.md 定稿 | 问题交 S3 修复；通过进合并确认 |
@@ -126,7 +126,7 @@ flowchart LR
 | S8 用例质检 | 质检 subagent | 语义关逐项 + 形式关跑脚本（test-case 参数）；TP 全覆盖豁免校验 | tc-check.md → test-case.md 定稿 | 问题交 S7 修复；通过进合并确认 |
 | S8+S9 合并确认 | 测试经理 | 同屏呈现质检结论（报告要点 + validate.sh 结果）与 TC 清单，一次确认完成质检认可与评审 | state.md 确认记录（S8+S9）；test-case.md 状态标注「已评审」 | 强确认 |
 
-- **输入模型**：S3 必须=需求文档；S7 必须=开发设计文档（develop-docs/）；领域知识、历史测试点（db-docs/tp-ddl.json）、历史测试用例（db-docs/tc-ddl.json）、数标库（db-docs/dict-ddl.json）、用户上传（session-log/input/）为可选——可选缺失注明「未提供」继续，必须缺失暂停请用户补充（带风险推进确认登记 state.md 后 S7 派发放行）
+- **输入模型**：S3 必须=需求文档；S7 必须=开发设计文档（develop-docs/）；领域知识、历史测试点（db-docs/tp-ddl.json）、历史测试用例（db-docs/tc-ddl.json）、数标库（db-docs/dict-ddl.json）、用户上传（session-log/input/）为可选——可选缺失注明「未提供」继续，必须缺失暂停请用户补充（带风险推进确认登记 state.md 后 S7 派发放行）；补充材料落位：设计材料补进 develop-docs/db-docs（触发材料变更协议），澄清附件放会话 input/
 - **单一功能边界**：一次只做一个业务功能；切换须显式挂起并在 state.md 登记
 - **状态恢复**：开工先读活跃会话 `session-log/state.md` 并与各产物条目数核对；不一致先向用户求证，不盲信 state 也不盲信文件
 - **基线管理**：验收通过的清单即基线，此后只做受控变更（失效/新增/修改）；编号只增不改不复用，禁止无差别重新生成
@@ -150,7 +150,7 @@ flowchart LR
 | 关 | 谁来做 | 查什么 |
 |---|---|---|
 | 语义关 | 质检 subagent 逐项 | 出处、切分、归组、命名、可判定、高风险判定、覆盖反向核对（逐锚点）、去重、名称与 scope.md 登记原文逐字一致 |
-| 形式关 | 脚本必跑 | S4 传会话目录 `test-point.md`、S8 传 `test-case.md`（禁止 `all`）：编号格式与唯一性、必填字段、锚点底册引用与全覆盖、摘录逐字机验、TC→TP 引用完整、TP 全覆盖（含豁免） |
+| 形式关 | 脚本必跑 | S4 传会话目录 `test-point.md`、S8 传 `test-case.md`（禁止 `all`）：functions.md 注册表（功能码全局唯一）、编号格式与唯一性、必填字段、锚点底册引用与全覆盖、摘录逐字机验、TC→TP 引用完整、TP 全覆盖（含豁免） |
 
 - **脚本 PASS ≠ 质检通过**；两关都过才可定稿并发起合并确认
 - 问题清单逐条标注级别与处置方；产物级走修复循环，输入/基线级立即呈报用户
@@ -179,6 +179,6 @@ flowchart LR
 | `.opencode/skills/tdd-quality-check/` | 设计材料质检：五维 + 前端/后端设计文档、数标库、接口文档专项、design-check 报告模板 |
 | `.opencode/skills/test-analysis-methods/` | 八种方法选用矩阵、银行/Web/接口领域检查单 |
 | `.opencode/skills/self-review-checklist/` | S4/S8 质检清单、问题分级与处置方、覆盖对照表、validate.sh |
-| `workspace/runtime_<项目>/assets/<prdId>/<functionId>/` | 运行时工作空间：需求目录（需求文档软链接）+ 功能目录（只读输入目录 + output/）+ session-log/（input/ + prd.txt/scope.md/state.md + 六过程产物）；结构契约见 `DESIGN/工作空间目录结构.md` |
+| `workspace/runtime_<项目>/assets/<prdId>/<functionId>/` | 运行时工作空间：需求目录（需求文档软链接 + functions.md 注册表 + prd.txt 快照）+ 功能目录（只读输入目录 + output/）+ session-log/（input/ + scope.md/state.md + 六过程产物）；结构契约见 `DESIGN/工作空间目录结构.md` |
 
 > 迁移说明：主流程 agent 原 `test-expert.md`（角色「测试设计专家」）已在职能三角改造中改名 `test-manager.md`（角色「测试经理」），旧唤起名 `@test-expert` 不再有效；生成职能移入 `test-designer.md`。

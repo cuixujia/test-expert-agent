@@ -23,7 +23,7 @@ TP/TC 的定义与判据见 test-point-spec / test-case-spec，本 skill 只定�
 
 ### 第二关 · 形式关（validate.sh 必跑）
 
-S4 校验传入会话目录 `test-point.md`（**禁止传 `all`**）：编号格式与唯一性、验证意图以「验证」开头、必填字段、TP 依据锚点在底册、底册锚点全覆盖、底册摘录 ≤40 字且逐字命中快照、TP 依据含底册摘录。
+S4 校验传入会话目录 `test-point.md`（**禁止传 `all`**）：编号格式与唯一性、验证意图以「验证」开头、必填字段、TP 依据锚点在底册、底册锚点全覆盖、底册摘录 ≤40 字且逐字命中快照、TP 依据含底册摘录；并联动校验需求目录 `functions.md` 功能清单注册表（名称原文、模块/功能编号格式、功能码格式与**全局唯一**——跨功能撞码在此拦截）。
 
 **脚本 PASS ≠ 质检通过；两关都过才可给出「通过」结论、test-point.md 方可定稿并发起「S4 质检结论 + S5 验收」合并确认。**
 
@@ -74,13 +74,13 @@ TP 覆盖对照表与 TC 覆盖对照表的列结构分别见 test-point-spec / 
 # S4：测试点质检（仓库根目录执行，路径含空格必须加引号；禁止传 all）
 bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/assets/<prdId>/<功能码-功能名>/session-log/test-point.md"
 
-# S8：用例质检（依赖同目录 scope.md 与 prd.txt，自动推导）
+# S8：用例质检（依赖同目录 scope.md 与需求目录 functions.md/prd.txt，自动推导）
 bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/assets/<prdId>/<功能码-功能名>/session-log/test-case.md"
 ```
 
-- 目录推导：快照与底册同目录——validate.sh 取会话目录（`session-log/`）内的 `scope.md` 锚点底册与 `prd.txt` PRD 文本快照
-- S4 传 `test-point.md`（联动校验 scope.md 功能清单与锚点底册、摘录逐字机验）；S8 传 `test-case.md`（含 TC 字段、TC→TP 引用、TP 全覆盖）；`all` 仅限人工调试（传会话目录），禁止用于阶段质检
-- 校验项：scope.md 功能清单结构（模块名称/功能名称原文非空、模块/功能编号格式、功能码格式与唯一）、锚点清单底册（scope.md 锚点清单存在、TP 依据锚点全部在底册、底册锚点全部出现在覆盖对照表）、test-point/test-case 编号格式与唯一性、验证意图以「验证」开头、必填字段非空、TC→TP 引用完整性、覆盖对照表存在性与未覆盖项原因声明、摘录逐字机验
+- 目录推导：底册取会话目录 `scope.md`；快照 `prd.txt` 与功能清单注册表 `functions.md` 取需求目录（会话目录上两级）
+- S4 传 `test-point.md`（联动校验 functions.md 功能清单注册表、scope.md 锚点底册、摘录逐字机验）；S8 传 `test-case.md`（含 TC 字段、TC→TP 引用、TP 全覆盖）；`all` 仅限人工调试（传会话目录），禁止用于阶段质检
+- 校验项：functions.md 功能清单注册表（模块名称/功能名称原文非空、模块/功能编号格式、功能码格式与全局唯一）、锚点清单底册（scope.md 锚点清单存在、TP 依据锚点全部在底册、底册锚点全部出现在覆盖对照表）、test-point/test-case 编号格式与唯一性、验证意图以「验证」开头、必填字段非空、TC→TP 引用完整性、覆盖对照表存在性与未覆盖项原因声明、摘录逐字机验
 - **TP 全覆盖豁免**：test-case.md 覆盖对照表中显式声明未覆盖原因（非空，如「S6 缺失项 <问题编号>」）的 TP 不计 FAIL；未声明原因的未覆盖 TP 仍硬失败
 - 摘录逐字机验：scope.md 底册原文摘录 ≤40 字且逐字命中会话目录 `prd.txt` 快照（比对前做空白规范化，含全角空格）；TP 依据必须包含对应锚点的底册摘录；快照缺失报 FAIL；scope.md 标注「快照机验：跳过（原因）」时输出 WARN 并跳过（降级声明，规则见 prd-quality-check 锚点规则 9）
 - 脚本兼容性注意：macOS awk 的 `length()` 按字节计数，摘录长度校验必须用 `wc -m`（LC_ALL=en_US.UTF-8）；且在 LC_ALL=UTF-8 下对纯中文串的 `==` 比较会误判真——validate.sh 的 awk 一律走 C locale 字节语义（不设 LC_ALL），中文相等判断用正则或 `index()`
