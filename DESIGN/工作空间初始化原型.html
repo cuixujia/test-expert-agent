@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>项目工作空间初始化 · AI测试用例生成</title>
+<style>
+:root{--blue:#2563eb;--blue-bg:#eff6ff;--green:#15803d;--amber:#a16207;--red:#b91c1c;--line:#e2e8f0;--muted:#64748b;--bg:#f5f7fb;--ink:#172033}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--bg);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+button,textarea,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.hidden{display:none!important}.muted{color:var(--muted)}
+.topbar{height:56px;display:flex;align-items:center;gap:12px;padding:0 18px;background:#fff;border-bottom:1px solid var(--line)}.logo{width:31px;height:31px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:750}.brand{font-weight:750;font-size:15px}.crumb{color:var(--muted);font-size:12px}.topright{margin-left:auto;color:var(--muted);font-size:12px}
+.page{max-width:1180px;margin:26px auto;padding:0 20px 60px}
+.stepper{display:flex;gap:6px;margin-bottom:20px}.step{flex:1;display:flex;align-items:center;gap:9px;padding:11px 13px;background:#fff;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:13px;font-weight:650;text-align:left}.step .n{width:24px;height:24px;border-radius:50%;border:1px solid #cbd5e1;background:#fff;display:grid;place-items:center;font-size:11px;flex:none;color:#64748b}.step.current{color:var(--blue);border-color:#93c5fd;background:var(--blue-bg)}.step.current .n{background:var(--blue);border-color:var(--blue);color:#fff}.step.done{color:var(--green)}.step.done .n{background:#dcfce7;border-color:#86efac;color:#166534}.step:disabled{cursor:pointer}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px}
+h1{font-size:21px;margin:0}.page-sub{color:var(--muted);font-size:13px;margin:4px 0 18px}
+h2{font-size:15px;margin:0 0 4px}h3{font-size:13px;margin:0 0 8px}
+.field{margin-bottom:14px}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:5px;color:#334155}.field label .req{color:var(--red);margin-left:2px}.field input,.field textarea,.field select{width:100%;border:1px solid #cbd5e1;border-radius:7px;padding:8px 10px;background:#fff;color:inherit}.field input:focus,.field textarea:focus,.field select:focus{outline:0;border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe66}.field .hint{font-size:11px;color:var(--muted);margin-top:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid2>.panel{margin:0}
+.btn{padding:8px 12px;border:1px solid #cbd5e1;background:#fff;border-radius:7px;color:#334155;font-weight:650;transition:background .18s,border-color .18s}.btn:hover{background:#f8fafc}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.primary:hover{background:#1d4ed8}.btn.sm{font-size:12px;padding:5px 9px}.btn.ghost-danger{color:var(--red);border-color:#fecaca}.btn.ghost-danger:hover{background:#fef2f2}
+.pill{display:inline-block;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700;background:#f1f5f9;color:#475569;white-space:nowrap}.pill.blue{background:#dbeafe;color:#1d4ed8}.pill.green{background:#dcfce7;color:#166534}.pill.amber{background:#fef3c7;color:#92400e}.pill.red{background:#fee2e2;color:#991b1b}
+.note{border:1px solid #bfdbfe;background:var(--blue-bg);border-radius:8px;padding:10px 12px;color:#1e40af;font-size:12px;line-height:1.7}
+.warn-note{border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:10px 12px;color:#92400e;font-size:12px;line-height:1.7}
+.actionbar{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:10px}.actionbar .left-hint{font-size:12px;color:var(--muted)}
+/* 步骤1 代码工程 */
+.cb-row{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:7px;background:#fbfcfe}.cb-row .cb-name{font-weight:700;font-size:13px}.cb-row .cb-url{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.cb-add{display:flex;gap:7px;margin-top:10px}.cb-add input{flex:1;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px;font-size:12px;min-width:0}
+/* 步骤2 领域选择 */
+.domain-pool{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.dchip{border:1px solid #cbd5e1;background:#fff;border-radius:18px;padding:6px 12px;font-size:12px;font-weight:650;color:#475569}.dchip:hover{border-color:#93c5fd;background:var(--blue-bg)}.dchip.on{background:var(--blue);border-color:var(--blue);color:#fff}.dchip .cnt{font-weight:400;opacity:.75;margin-left:3px;font-size:11px}
+.domain-card{border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:hidden}.domain-card .dc-head{display:flex;align-items:center;gap:9px;padding:10px 13px;background:#f8fafc;border-bottom:1px solid var(--line)}.domain-card .dc-head b{font-size:13px}.domain-card .dc-body{padding:10px 13px}
+.fn-row{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid transparent;border-radius:8px;margin:2px 0}.fn-row:hover{background:#f8fafc}.fn-code{font-size:11px;font-weight:750;background:#dbeafe;color:#1d4ed8;border-radius:5px;padding:2px 7px;flex:none;letter-spacing:.4px}.fn-name{font-size:13px;font-weight:650;flex:1}.fn-src{font-size:11px;color:var(--muted)}
+.modal-mask{position:fixed;inset:0;background:rgba(23,32,51,.44);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px}.modal{width:min(460px,94vw);background:#fff;border-radius:12px;border:1px solid var(--line);padding:18px}.modal .m-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.modal .m-head h3{margin:0;font-size:14px}.seg{display:flex;gap:6px;margin-bottom:12px}.seg button{flex:1;border:1px solid #cbd5e1;background:#fff;border-radius:7px;padding:7px;font-size:12px;font-weight:650;color:#475569}.seg button.on{background:var(--blue-bg);border-color:#93c5fd;color:var(--blue)}
+/* 步骤3 上传 */
+.mat-group{border:1px solid var(--line);border-radius:10px;margin-top:12px;overflow:hidden}.mat-group>.mg-head{display:flex;align-items:center;gap:9px;padding:11px 13px;background:#f8fafc;border-bottom:1px solid var(--line);cursor:pointer}.mat-group>.mg-head b{font-size:13px}.mg-scope{font-size:11px;color:var(--muted)}.mg-body{padding:11px 13px}
+.upload-row{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:#fff}.upload-row .up-label b{font-size:13px;display:block}.upload-row .up-label span{font-size:11px;color:var(--muted);display:block}.upload-row .files{margin-left:auto;text-align:right;font-size:11px;color:var(--muted);max-width:44%}
+.file-list{margin:2px 0 8px}.file-item{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 9px;border:1px dashed #cbd5e1;border-radius:7px;margin-bottom:4px;background:#fbfcfe}.file-item .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.file-item .fsize{color:var(--muted);font-size:11px}.file-item .rm{border:0;background:transparent;color:var(--red);font-size:12px;padding:2px 5px;border-radius:5px}.file-item .rm:hover{background:#fef2f2}
+.slot{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;background:#fff}.slot .sl-name{font-weight:650;font-size:12px}.slot .sl-desc{font-size:11px;color:var(--muted)}.slot .sl-mid{flex:1;min-width:0}
+/* 步骤3 层级树 */
+.tree-domain{border:1px solid var(--line);border-radius:10px;margin-bottom:14px;overflow:hidden;background:#fff}
+.td-head{display:flex;align-items:center;gap:9px;padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.td-head b{font-size:13px}.td-path{font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
+.td-body{padding:12px 14px}
+.td-fnlist{margin-left:22px;padding-left:14px;border-left:2px solid #dbe3ee}
+.fn-node{border:1px solid #dbe3ee;border-left:3px solid #93c5fd;border-radius:9px;padding:11px 13px;margin-bottom:10px;background:#fbfcfe}
+.fn-node .fn-head{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.fn-node .fn-head b{font-size:13px}
+.fn-copy-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:750;color:#1d4ed8;background:var(--blue-bg);border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px;margin:2px 0 8px}
+.dk-row{margin-bottom:4px}
+/* 步骤4 */
+.check-item{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed #edf0f5;font-size:13px}.check-item:last-child{border-bottom:0}.check-item .ic{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;flex:none;margin-top:1px}.check-item .ic.ok{background:#dcfce7;color:#166534}.check-item .ic.warn{background:#fef3c7;color:#92400e}.check-item .ic.bad{background:#fee2e2;color:#991b1b}.check-item .ck-sub{font-size:11px;color:var(--muted)}
+.tree{font:12px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f172a;color:#e2e8f0;border-radius:10px;padding:14px 16px;overflow:auto;max-height:520px;white-space:pre}.tree .lk{color:#7dd3fc}.tree .cm{color:#94a3b8}.tree .dim{color:#64748b}.tree .okc{color:#86efac}
+.tree-view{font:10px -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;border:1px solid #33455b;background:#1e293b;color:#7dd3fc;border-radius:4px;padding:1px 7px;margin-left:6px;cursor:pointer}
+.tree-view:hover{background:#334155;color:#bae6fd}
+.success-box{border:1px solid #86efac;background:#f0fdf4;border-radius:10px;padding:16px 18px}.success-box h2{color:#166534}.stat-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}.stat{border:1px solid #bbf7d0;background:#fff;border-radius:9px;padding:9px 13px}.stat span{display:block;font-size:11px;color:var(--muted)}.stat b{font-size:17px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 14px;background:#172033;color:#fff;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:60}.toast.show{opacity:1}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}.stepper{flex-wrap:wrap}.step{min-width:45%}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo" aria-hidden="true">AI</div><div class="brand">AI测试用例生成</div><div class="crumb">项目工作空间初始化</div>
+  <div class="topright">原型演示 · 不创建真实目录与软链接</div>
+</header>
+
+<div class="page">
+  <nav class="stepper" id="stepper" aria-label="初始化步骤"></nav>
+
+  <!-- ========== 步骤 1：项目信息 ========== -->
+  <section id="step1">
+    <h1>项目信息</h1>
+    <p class="page-sub">登记项目基本信息与代码工程。代码以<b>项目粒度</b>统一 clone 到 <code>/home/projects/&lt;projectId&gt;/code/</code>，所有业务功能共享，避免重复拷贝。</p>
+    <div class="grid2">
+      <div class="panel">
+        <h2>基本信息</h2>
+        <div class="field"><label>项目名称<span class="req">*</span></label><input id="pName" placeholder="如：雪狼项目"><div class="hint">将用于运行时目录 <code>runtime_&lt;projectId&gt;</code> 的展示名。</div></div>
+        <div class="field"><label>项目编号<span class="req">*</span></label><input id="pId" placeholder="如：XL2026"><div class="hint">仅限字母、数字与短横线，作为目录标识。</div></div>
+        <div class="field"><label>业务负责人</label><input id="pOwner" placeholder="如：张杰"></div>
+        <div class="field" style="margin-bottom:0"><label>项目简介</label><textarea id="pDesc" rows="3" placeholder="一句话说明项目范围，便于测试经理理解背景（可选）"></textarea></div>
+      </div>
+      <div class="panel">
+        <h2>代码工程<span class="req" style="color:var(--red)">*</span></h2>
+        <p class="muted" style="font-size:12px;margin:0 0 10px">至少登记 1 个代码工程；初始化时由系统统一 clone，AI 运行时通过软链接挂载。</p>
+        <div id="cbList"></div>
+        <div class="cb-add">
+          <input id="cbName" placeholder="工程名称，如 core-system">
+          <input id="cbUrl" placeholder="Git 地址，如 git@bank:core/core-system.git" style="flex:1.6">
+          <button class="btn sm primary" id="cbAddBtn">＋ 登记</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 步骤 2：业务领域与业务功能 ========== -->
+  <section id="step2" class="hidden">
+    <h1>业务领域与业务功能</h1>
+    <p class="page-sub">业务模型层级：<b>价值链 → 业务领域</b>（全行 76 个）<b>→ 业务活动 → 业务功能</b>。选定项目涉及的领域，并在每个领域下挂载本次要做的业务功能——它们决定了工作空间 <code>file/&lt;bizFunctionId&gt;/</code> 的目录骨架。</p>
+    <div class="panel">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <h2 style="margin:0">① 选择业务领域</h2><input id="dSearch" placeholder="搜索领域…" style="border:1px solid #cbd5e1;border-radius:7px;padding:7px 10px;font-size:12px;width:200px"><span class="muted" style="font-size:12px">已选 <b id="dSelCount">0</b> 个</span>
+      </div>
+      <div class="domain-pool" id="domainPool"></div>
+      <div class="note" style="margin-top:12px">领域知识与功能资产为<b>全行复用资产</b>：选择已有领域即可自动挂载其 <code>domain-knowledge</code> 与 <code>asset-library</code>，无需重复上传。</div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">② 为每个领域挂载业务功能</h2><span class="muted" style="font-size:12px">可从功能库选择，也可新建（功能码 ≤6 字符，用于 TP / TC 编号）</span>
+      </div>
+      <div id="domainCards"></div>
+    </div>
+  </section>
+
+  <!-- ========== 步骤 3：资料准备与上传 ========== -->
+  <section id="step3" class="hidden">
+    <h1>资料准备与上传</h1>
+    <p class="page-sub">按<b>「业务领域 → 业务功能」的所属层级</b>维护资料，与物理存储目录一一对应：领域下先备<b>领域知识</b>；每个功能节点内备<b>该功能的 PRD 与开发设计文档</b>（项目工作副本，按功能隔离）及<b>复用资产集</b>（逆向 / 知识 / 数据字典 / 存量用例）。已有库存资产可直接复用，缺口可显式登记后补齐。</p>
+    <div id="matGroups"></div>
+    <div class="warn-note" style="margin-top:14px"><b>关于材料缺口：</b>允许「带缺口初始化」，缺口将显式登记并在后续 S6 设计材料质检中呈报（缺失项受影响的测试点不生成用例）。但 <b>每个业务功能的 PRD 必须上传</b>——没有 PRD 无法为该功能建立锚点底册与测试点溯源基准。</div>
+  </section>
+
+  <!-- ========== 步骤 4：确认与初始化 ========== -->
+  <section id="step4" class="hidden">
+    <div id="initPre">
+      <h1>确认与初始化</h1>
+      <p class="page-sub">核对就绪度，预览<b>软链接挂载后</b>的运行时工作空间（物料仍在物理存储空间，运行时经软链接读取）。确认后系统创建 <code>runtime_&lt;projectId&gt;</code> 并建立软链接。</p>
+      <div class="grid2">
+        <div class="panel">
+          <h2>就绪度检查</h2>
+          <div id="checkList"></div>
+          <div id="blockBox" style="margin-top:12px"></div>
+        </div>
+        <div class="panel" style="padding:14px">
+          <h2 style="padding:0 6px 8px">运行时工作空间预览 <span class="pill blue">软链接挂载后</span></h2>
+          <div class="tree" id="treePreview"></div>
+        </div>
+      </div>
+      <div class="actionbar" style="margin-top:16px">
+        <span class="left-hint">初始化后即可在工作台发起「测试点 / 测试用例」任务。</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" data-goto="3">← 上一步</button>
+          <button class="btn primary" id="initBtn">初始化工作空间</button>
+        </div>
+      </div>
+    </div>
+    <div id="initDone" class="hidden">
+      <div class="success-box">
+        <h2>✓ 工作空间初始化完成</h2>
+        <p class="muted" style="font-size:13px;margin:4px 0 0">运行时目录 <code id="donePath"></code> 已创建，软链接挂载完毕，AGENTS.md 导航规则已写入。项目材料缺口（如有）已登记至初始化清单，将在 S6 设计材料质检时呈报。</p>
+        <div class="stat-row" id="statRow"></div>
+        <div style="margin-top:14px;display:flex;gap:8px">
+          <button class="btn primary" onclick="location.href='AI测试用例工作台.html'">进入 AI测试用例工作台 →</button>
+          <button class="btn" onclick="location.reload()">再初始化一个项目</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 步骤内导航 -->
+  <div class="actionbar" id="navBar">
+    <span class="left-hint" id="navHint"></span>
+    <div style="display:flex;gap:8px">
+      <button class="btn hidden" id="prevBtn">← 上一步</button>
+      <button class="btn primary" id="nextBtn">下一步 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- 添加功能弹窗 -->
+<div class="modal-mask hidden" id="fnMask">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="添加业务功能">
+    <div class="m-head"><h3 id="fnModalTitle">添加业务功能</h3><button class="btn sm" id="fnModalClose">关闭</button></div>
+    <div class="seg"><button id="segPick" class="on">从功能库选择</button><button id="segNew">新建功能</button></div>
+    <div id="pickPane">
+      <div class="field"><label>功能库（该领域下已登记的功能）</label><select id="pickSelect"></select><div class="hint">功能库资产（逆向文档 / 知识 / 数据字典 / 存量用例）将随选择自动挂载。</div></div>
+      <button class="btn primary" id="pickOk" style="width:100%">添加</button>
+    </div>
+    <div id="newPane" class="hidden">
+      <div class="field"><label>功能名称<span class="req" style="color:var(--red)">*</span></label><input id="newFnName" placeholder="须与 PRD 原文逐字一致"></div>
+      <div class="field"><label>功能码<span class="req" style="color:var(--red)">*</span></label><input id="newFnCode" placeholder="≤6 字符拼音/英文缩写，如 LBZS" maxlength="6"><div class="hint">仅用于 TP / TC 编号前缀。</div></div>
+      <button class="btn primary" id="newOk" style="width:100%">创建并添加</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================= 模拟数据 ================= */
+const DOMAIN_LIB={
+ '信贷管理':{activities:'贷款申请 / 审批 / 放款 / 贷后',fns:['贷款申请受理','贷款申请审批','贷款合同签署','放款处理','贷后管理','提前还款']},
+ '支付结算':{activities:'转账 / 清算 / 对账',fns:['发起转账','收款人管理','转账审核','转账限额维护','交易查询','转账撤销']},
+ '客户信息':{activities:'客户建立 / 维护 / 评分',fns:['客户信息查询','客户信息新增','客户信息修改','客户信息审核','客户信息停用']},
+ '会计核算':{activities:'总账 / 明细账 / 日终',fns:['凭证录入','日终批处理','总分核对','损益结转']},
+ '风险管理':{activities:'限额 / 预警 / 减值',fns:['限额监控','风险预警推送','减值计提']},
+ '渠道管理':{activities:'柜面 / 手机银行 / 网银',fns:['柜面签约管理','手机银行限额设置']},
+ '资金管理':{activities:'头寸 / 资金交易',fns:['头寸申报','资金拆借录入']},
+ '票据业务':{activities:'承兑 / 贴现 / 托收',fns:['银行承兑签发','票据贴现申请']},
+ '国际结算':{activities:'汇款 / 托收 / 信用证',fns:['汇出汇款','信用证开立']},
+ '金融市场':{activities:'债券 / 同业',fns:['债券买入录入','同业存单发行']}
+};
+/* 资产库存模拟：决定「已有 / 缺失」展示 */
+const STOCK={};let seed=7;function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+DOMAIN_LIB['信贷管理'].fns.concat(DOMAIN_LIB['支付结算'].fns).forEach(f=>{STOCK[f]={reverse:rnd()>.4?1+Math.floor(rnd()*3):0,knowledge:rnd()>.5?1+Math.floor(rnd()*2):0,db:rnd()>.3?1:0,cases:Math.floor(rnd()*60)}});
+const DOMAINS=Object.keys(DOMAIN_LIB);
+
+/* ================= 状态 ================= */
+const state={step:1,
+  project:{name:'',id:'',owner:'',desc:''},
+  codebases:[{name:'core-system',url:'git@bank:core/core-system.git'},{name:'channel-front',url:'git@bank:channel/channel-front.git'}],
+  domains:[],               // [{name, fns:[{name,code,src:'lib'|'new'}]}]
+  domainFiles:{},           // 领域名 -> [文件]
+  fnFiles:{},               // 功能名 -> {reverse:[],knowledge:[],db:[],cases:[],prd:[],fe:[],be:[],dbdesign:[]}
+  inited:false};
+state.domains.push({name:'信贷管理',fns:[{name:'贷款申请审批',code:'LBSH',src:'lib'},{name:'贷款申请受理',code:'SQSL',src:'lib'}]});
+state.domains.push({name:'支付结算',fns:[{name:'转账限额维护',code:'ZHZX',src:'new'}]});
+state.domainFiles['信贷管理']=[{n:'信贷业务产品要素说明.md',s:'82 KB'},{n:'信贷术语与状态机.md',s:'46 KB'}];
+state.fnFiles['贷款申请审批']={reverse:[{n:'reverse.md',s:'126 KB'}],knowledge:[{n:'审批流程规则.md',s:'38 KB'}],db:[{n:'dict-ddl.json',s:'210 KB'}],cases:[],
+  prd:[{n:'贷款申请审批-需求说明书-v1.3.md',s:'340 KB'}],fe:[],be:[{n:'审批服务接口设计.md',s:'88 KB'}],dbdesign:[]};
+
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastTimer;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200)}
+function fsize(n){return n>=1048576?(n/1048576).toFixed(1)+' MB':(n/1024).toFixed(0)+' KB'}
+function allFns(){return state.domains.flatMap(d=>d.fns)}
+function fnFiles(name){if(!state.fnFiles[name])state.fnFiles[name]={reverse:[],knowledge:[],db:[],cases:[],prd:[],fe:[],be:[],dbdesign:[]};return state.fnFiles[name]}
+
+/* ================= 步骤导航 ================= */
+const STEP_META=[['1','项目信息','名称 / 编号 / 代码工程'],['2','业务领域与功能','领域挂载 · 功能码'],['3','资料准备','领域级 / 功能级 / 项目级'],['4','确认初始化','就绪度 · 目录预览']];
+function renderStepper(){$('#stepper').innerHTML=STEP_META.map(([n,t,s],i)=>{const k=i+1;return `<button class="step ${k===state.step?'current':k<state.step?'done':''}" data-goto="${k}"><span class="n">${k<state.step?'✓':n}</span><span><span style="display:block">${t}</span><span style="font-size:11px;font-weight:400;opacity:.75">${s}</span></span></button>`}).join('')}
+function goto(k){
+  if(k>state.step&&!validateBefore(state.step,k))return;
+  if(state.inited&&k<4){toast('工作空间已初始化完成');return}
+  state.step=k;
+  [1,2,3,4].forEach(n=>$('#step'+n).classList.toggle('hidden',n!==k));
+  renderStepper();
+  $('#prevBtn').classList.toggle('hidden',k===1);
+  $('#nextBtn').classList.toggle('hidden',k===4);
+  $('#navBar').classList.toggle('hidden',k===4);
+  const hints={1:'填写项目信息后进入下一步；带 * 为必填。',2:'至少选择 1 个业务领域，且每个领域至少挂载 1 个业务功能。',3:'每个业务功能的 PRD 必须上传；其余资料可复用库存或带缺口初始化。'};
+  $('#navHint').textContent=hints[k]||'';
+  if(k===2)renderDomains();
+  if(k===3)renderMats();
+  if(k===4)renderConfirm();
+  window.scrollTo({top:0});
+}
+function validateBefore(from,to){
+  for(let s=from;s<to;s++){
+    if(s===1){
+      state.project.name=$('#pName').value.trim();state.project.id=$('#pId').value.trim();state.project.owner=$('#pOwner').value.trim();state.project.desc=$('#pDesc').value.trim();
+      if(!state.project.name)return toast('请填写项目名称'),false;
+      if(!/^[A-Za-z0-9-]{2,32}$/.test(state.project.id))return toast('项目编号需为 2~32 位字母、数字或短横线'),false;
+      if(!state.codebases.length)return toast('请至少登记 1 个代码工程'),false;
+    }
+    if(s===2){
+      if(!state.domains.length)return toast('请至少选择 1 个业务领域'),false;
+      if(state.domains.some(d=>!d.fns.length))return toast('每个已选领域至少挂载 1 个业务功能'),false;
+      const seen=new Set();for(const f of allFns()){if(seen.has(f.code))return toast(`功能码 ${f.code} 重复，请在同一项目内保持唯一`),false;seen.add(f.code)}
+    }
+    if(s===3){const miss=allFns().filter(f=>!fnFiles(f.name).prd.length);if(miss.length)return toast(`以下功能缺少 PRD：${miss.map(f=>f.name).join('、')}`),false}
+  }
+  return true;
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-goto]');if(b)goto(+b.dataset.goto)});
+$('#prevBtn').onclick=()=>goto(Math.max(1,state.step-1));
+$('#nextBtn').onclick=()=>goto(Math.min(4,state.step+1));
+document.addEventListener('click',e=>{const v=e.target.closest('[data-view]');if(v)toast(`原型演示：此处打开「${v.dataset.view}」资料预览（只读）`)});
+
+/* ================= 步骤1：代码工程 ================= */
+function renderCodebases(){
+  $('#cbList').innerHTML=state.codebases.length?state.codebases.map((c,i)=>`<div class="cb-row"><span class="pill blue">工程</span><span class="cb-name">${esc(c.name)}</span><span class="cb-url">${esc(c.url)}</span><button class="btn sm ghost-danger" data-cbrm="${i}">移除</button></div>`).join(''):'<p class="muted" style="font-size:12px;margin:0 0 6px">尚未登记代码工程。</p>';
+}
+$('#cbAddBtn').onclick=()=>{const n=$('#cbName').value.trim(),u=$('#cbUrl').value.trim();if(!n||!u)return toast('请填写工程名称与 Git 地址');if(state.codebases.some(c=>c.name===n))return toast('工程名称已登记');state.codebases.push({name:n,url:u});$('#cbName').value='';$('#cbUrl').value='';renderCodebases()};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-cbrm]');if(b){state.codebases.splice(+b.dataset.cbrm,1);renderCodebases()}});
+
+/* ================= 步骤2：领域与功能 ================= */
+function renderDomains(){
+  const q=($('#dSearch').value||'').trim();
+  const pool=DOMAINS.filter(d=>d.includes(q));
+  $('#dSelCount').textContent=state.domains.length;
+  $('#domainPool').innerHTML=pool.map(d=>{const on=state.domains.some(x=>x.name===d);return `<button class="dchip ${on?'on':''}" data-d="${esc(d)}">${esc(d)}<span class="cnt">${on?'✓ 已选':DOMAIN_LIB[d].fns.length+' 功能'}</span></button>`}).join('')||'<span class="muted" style="font-size:12px">无匹配领域</span>';
+  $('#domainCards').innerHTML=state.domains.length?state.domains.map((d,di)=>`
+    <div class="domain-card">
+      <div class="dc-head"><span class="pill blue">业务领域</span><b>${esc(d.name)}</b>
+        <span class="muted" style="font-size:11px">业务活动：${esc(DOMAIN_LIB[d.name]?.activities||'自定义领域')}</span>
+        <span style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn sm primary" data-addfn="${di}">＋ 添加功能</button>
+          <button class="btn sm ghost-danger" data-rmdomain="${di}">移除领域</button>
+        </span></div>
+      <div class="dc-body">${d.fns.length?d.fns.map(f=>`
+        <div class="fn-row"><span class="fn-code">${esc(f.code)}</span><span class="fn-name">${esc(f.name)}</span>
+          <span class="fn-src">${f.src==='lib'?'来自功能库 · 资产自动挂载':'新建 · 待补资产'}</span>
+          <button class="btn sm ghost-danger" data-rmfn="${di}|${esc(f.name)}">移除</button></div>`).join(''):'<p class="muted" style="font-size:12px;margin:2px 0">尚未挂载业务功能——功能决定工作空间的任务目录，至少添加 1 个。</p>'}
+      </div>
+    </div>`).join(''):'<p class="muted" style="font-size:13px;margin:6px 0">尚未选择业务领域：请在上方点选（全行共 76 个领域，支持搜索）。</p>';
+}
+$('#dSearch').addEventListener('input',renderDomains);
+document.addEventListener('click',e=>{
+  const d=e.target.closest('[data-d]');
+  if(d){const name=d.dataset.d;const i=state.domains.findIndex(x=>x.name===name);
+    if(i>=0)state.domains.splice(i,1);else state.domains.push({name,fns:[]});renderDomains();return}
+  const rd=e.target.closest('[data-rmdomain]');if(rd){state.domains.splice(+rd.dataset.rmdomain,1);renderDomains();return}
+  const rf=e.target.closest('[data-rmfn]');if(rf){const[di,fn]=rf.dataset.rmfn.split('|');const dom=state.domains[+di];dom.fns=dom.fns.filter(f=>f.name!==fn);renderDomains();return}
+  const af=e.target.closest('[data-addfn]');if(af)openFnModal(+af.dataset.addfn);
+});
+/* 功能弹窗 */
+let fnTargetDomain=0,fnMode='pick';
+function openFnModal(di){fnTargetDomain=di;fnMode='pick';
+  const dom=state.domains[di];$('#fnModalTitle').textContent=`添加业务功能 · ${dom.name}`;
+  const exist=new Set(dom.fns.map(f=>f.name));
+  const opts=(DOMAIN_LIB[dom.name]?.fns||[]).filter(n=>!exist.has(n));
+  $('#pickSelect').innerHTML=opts.length?opts.map(n=>`<option>${esc(n)}</option>`).join(''):'<option value="">（该领域功能库均已添加，或改用「新建功能」）</option>';
+  $('#pickOk').disabled=!opts.length;
+  setFnMode('pick');$('#fnMask').classList.remove('hidden');
+}
+function setFnMode(m){fnMode=m;$('#segPick').classList.toggle('on',m==='pick');$('#segNew').classList.toggle('on',m==='new');$('#pickPane').classList.toggle('hidden',m!=='pick');$('#newPane').classList.toggle('hidden',m!=='new')}
+$('#segPick').onclick=()=>setFnMode('pick');$('#segNew').onclick=()=>setFnMode('new');
+$('#fnModalClose').onclick=()=>$('#fnMask').classList.add('hidden');
+$('#fnMask').addEventListener('click',e=>{if(e.target===$('#fnMask'))$('#fnMask').classList.add('hidden')});
+$('#pickOk').onclick=()=>{const n=$('#pickSelect').value;if(!n)return;const dom=state.domains[fnTargetDomain];
+  const code=(DOMAIN_LIB[dom.name]?.fns.includes(n))?pinyinCode(n):autoCode(n);
+  dom.fns.push({name:n,code,src:'lib'});$('#fnMask').classList.add('hidden');renderDomains();toast(`已挂载「${n}」，功能资产自动挂载`)};
+$('#newOk').onclick=()=>{const n=$('#newFnName').value.trim(),c=$('#newFnCode').value.trim().toUpperCase();
+  if(!n)return toast('请填写功能名称（须与 PRD 原文逐字一致）');
+  if(!/^[A-Z0-9]{2,6}$/.test(c))return toast('功能码需为 2~6 位大写字母/数字');
+  const dom=state.domains[fnTargetDomain];
+  if(allFns().some(f=>f.code===c))return toast('功能码已被使用');
+  dom.fns.push({name:n,code:c,src:'new'});$('#newFnName').value='';$('#newFnCode').value='';
+  $('#fnMask').classList.add('hidden');renderDomains();toast(`已新建「${n}」（${c}），待补功能资产`)};
+function pinyinCode(n){const map={贷:'D',款:'K',申:'S',请:'Q',审:'S',批:'P',受:'S',理:'L',转:'Z',账:'Z',限:'X',额:'E',维:'W',护:'H'};let r='';for(const ch of n){if(map[ch])r+=map[ch];if(r.length>=4)break}return r||autoCode(n)}
+function autoCode(n){return ('F'+Math.abs(hash(n))%900+100).slice(0,4)}
+function hash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))|0;return h}
+
+/* ================= 步骤3：资料上传 ================= */
+document.addEventListener('click',e=>{
+  const up=e.target.closest('[data-upload]');
+  if(up){const key=up.dataset.upload;const inp=pickers[key]||(pickers[key]=makePicker(key));inp.click();return}
+  const rm=e.target.closest('[data-rmfile]');
+  if(rm){const[key,idx]=rm.dataset.rmfile.split('|');getFileArr(key).splice(+idx,1);renderMats()}
+});
+const pickers={};
+function makePicker(key){const inp=document.createElement('input');inp.type='file';inp.multiple=true;inp.style.display='none';document.body.appendChild(inp);
+  inp.onchange=()=>{[...inp.files].forEach(f=>getFileArr(key).push({n:f.name,s:fsize(f.size)}));inp.value='';renderMats()};return inp}
+function getFileArr(key){
+  const[type,...rest]=key.split('::');
+  if(type==='domain'){const[name]=rest;return state.domainFiles[name]||(state.domainFiles[name]=[])}
+  if(type==='fn'){const[name,slot]=rest;const F=fnFiles(name);return F[slot]}
+  return [];
+}
+function slotRow(label,desc,arrKey,required=false,stockNote=''){
+  const arr=getFileArr(arrKey);
+  const files=arr.map((f,i)=>`<div class="file-item"><span>📄</span><span class="fname">${esc(f.n)}</span><span class="fsize">${esc(f.s)}</span><button class="btn sm" style="padding:2px 8px;font-size:11px" data-view="${esc(f.n)}">查看</button><button class="rm" data-rmfile="${esc(arrKey)}|${i}">移除</button></div>`).join('');
+  const badge=required?(arr.length?'<span class="pill green">已上传</span>':'<span class="pill red">必传</span>'):(arr.length?`<span class="pill green">${arr.length} 份</span>`:'<span class="pill">未上传</span>');
+  return `<div class="slot"><div class="sl-mid"><span class="sl-name">${label} ${badge}</span><div class="sl-desc">${desc}${stockNote?` · <b>${stockNote}</b>`:''}</div></div>
+    <button class="btn sm" data-upload="${esc(arrKey)}">上传</button></div>${files?`<div class="file-list">${files}</div>`:''}`;
+}
+function renderMats(){
+  const g=$('#matGroups');
+  let html=`<div class="note" style="margin-bottom:14px">资料按<b>「业务领域 → 业务功能」的所属层级</b>组织，与物理存储目录一一对应：领域下先放<b>领域知识</b>（跨功能复用）；每个功能节点内维护<b>功能资产集</b>（逆向 / 知识 / 数据字典，跨项目复用）与<b>项目工作副本</b>（该功能的 PRD 与开发设计文档）。代码工程为项目级共享。可直接在层级内添加 / 移除功能。</div>`;
+  /* 领域 → 功能 层级树 */
+  if(!state.domains.length){
+    html+=`<div class="panel" style="padding:14px"><p class="muted" style="margin:0;font-size:13px">尚未选择业务领域，请返回上一步完成选择。</p></div>`;
+  }
+  state.domains.forEach((d,di)=>{
+    const dk=state.domainFiles[d.name]?.length||0;
+    html+=`<div class="tree-domain">
+      <div class="td-head"><span class="pill blue">业务领域</span><b>${esc(d.name)}</b>
+        <span class="td-path">/home/test-case/&lt;bizDomainId&gt;/</span>
+        <span style="margin-left:auto;display:flex;gap:6px">
+          <button class="btn sm primary" data-addfn="${di}">＋ 添加功能</button>
+          <button class="btn sm ghost-danger" data-rmdomain="${di}">移除领域</button>
+        </span></div>
+      <div class="td-body">
+        <div class="dk-row">${slotRow('领域知识 domain-knowledge','业务领域知识：业务规则、产品要素、状态机等 · 跨业务功能复用','domain::'+d.name,false,dk?`已有 ${dk} 份`:'暂无库存')}</div>
+        <div class="td-fnlist">`;
+    if(!d.fns.length)html+=`<p class="muted" style="font-size:12px;margin:4px 0 8px">该领域下暂无业务功能——功能资产（逆向 / 知识 / 数据字典）都挂在功能上，请先添加。</p>`;
+    d.fns.forEach(f=>{
+      const F=fnFiles(f.name);const stock=STOCK[f.name];
+      const sTxt=f.src==='lib'&&stock?`库存：逆向 ${stock.reverse||0} · 知识 ${stock.knowledge||0} · 数库 ${stock.db||0} · 存量用例 ${stock.cases} 条`:(f.src==='lib'?'来自功能库':'新建功能 · 无库存');
+      html+=`<div class="fn-node">
+        <div class="fn-head"><span class="fn-code">${esc(f.code)}</span><b>${esc(f.name)}</b>
+          <span class="muted" style="font-size:11px">${sTxt}</span>
+          <button class="btn sm ghost-danger" style="margin-left:auto" data-rmfn="${di}|${esc(f.name)}">移除</button></div>
+        <div class="fn-copy-tag">项目工作副本 <span class="td-path">…/&lt;bizFunctionId&gt;/&lt;projectId&gt;/</span></div>
+        ${slotRow('产品需求文档 prd-doc','该功能的需求文档 · S1 据此登记功能与锚点底册（名称逐字取自 PRD）',`fn::${f.name}::prd`,true)}
+        <div style="height:7px"></div>
+        ${slotRow('前端设计 fe-design','该功能的前端开发设计文档（md）',`fn::${f.name}::fe`)}
+        ${slotRow('后端设计 be-design','该功能的后端开发设计文档（md）',`fn::${f.name}::be`)}
+        ${slotRow('数据库设计 db-design','该功能的库表设计文档（md）',`fn::${f.name}::dbdesign`)}
+        <div class="fn-copy-tag">复用资产集 <span class="td-path">…/&lt;bizFunctionId&gt;/asset-library/</span></div>
+        ${slotRow('逆向文档 reverse-docs','功能逆向梳理文档 · 已有库存可复用，无需重复上传',`fn::${f.name}::reverse`,false,stock&&stock.reverse?`已有 ${stock.reverse} 份`:'')}
+        ${slotRow('功能知识 knowledge-docs','功能级业务知识文档',`fn::${f.name}::knowledge`,false,stock&&stock.knowledge?`已有 ${stock.knowledge} 份`:'')}
+        ${slotRow('数据库资料 db-docs','数据字典 / 表结构 DDL（JSON）',`fn::${f.name}::db`,false,stock&&stock.db?`已有 ${stock.db} 份`:'')}
+        ${slotRow('存量测试用例 test-case','历史用例（用例采纳后自动回写更新）',`fn::${f.name}::cases`,false,stock&&stock.cases?`已有 ${stock.cases} 条`:'')}
+      </div>`;
+    });
+    html+=`</div></div></div>`;
+  });
+  /* 项目级（仅代码工程） */
+  html+=`<div class="tree-domain"><div class="td-head"><span class="pill blue">项目级</span><b>代码工程</b>
+    <span class="td-path">/home/projects/&lt;projectId&gt;/code/</span></div><div class="td-body">
+    <div class="slot"><div class="sl-mid"><span class="sl-name">代码工程 code <span class="pill blue">自动 clone</span></span><div class="sl-desc">步骤 1 已登记 ${state.codebases.length} 个工程：${state.codebases.map(c=>esc(c.name)).join('、')||'—'}；初始化时统一 clone，以项目粒度共享、避免每个业务功能一份拷贝，运行时经软链接挂载到各功能目录</div></div></div>
+  </div></div>`;
+  g.innerHTML=html;
+}
+
+/* ================= 步骤4：确认与初始化 ================= */
+function renderConfirm(){
+  const fns=allFns();
+  const domKnowledgeOk=state.domains.every(d=>(state.domainFiles[d.name]?.length||0)>0);
+  const assetGaps=fns.filter(f=>{const F=fnFiles(f.name),s=STOCK[f.name];const hasLib=stockHas(s)||F.reverse.length||F.knowledge.length||F.db.length;return !hasLib});
+  const checks=[
+    {ok:!!(state.project.name&&state.project.id&&state.codebases.length),t:`项目信息：${esc(state.project.name||'—')}（${esc(state.project.id||'—')}）`,sub:`代码工程 ${state.codebases.length} 个 · 负责人 ${esc(state.project.owner||'未填写')||'未填写'}`},
+    {ok:state.domains.length>0,t:`业务领域 ${state.domains.length} 个：${state.domains.map(d=>esc(d.name)).join('、')}`,sub:`业务功能共 ${fns.length} 个，功能码 ${fns.map(f=>esc(f.code)).join(' / ')}`},
+    {ok:domKnowledgeOk,gap:true,t:domKnowledgeOk?'领域知识：各领域均有覆盖':'领域知识存在缺口：'+state.domains.filter(d=>!(state.domainFiles[d.name]?.length||0)).map(d=>esc(d.name)).join('、'),sub:'缺口可带缺口初始化，将在流程中显式登记'},
+    {ok:allFns().every(f=>fnFiles(f.name).prd.length>0),t:allFns().every(f=>fnFiles(f.name).prd.length>0)?`PRD：${fns.length} 个功能均已上传（按功能隔离）`:`PRD 缺失：${allFns().filter(f=>!fnFiles(f.name).prd.length).map(f=>esc(f.name)).join('、')}（阻断项）`,sub:'PRD 为业务功能级物料 · 没有功能级 PRD 无法建立锚点底册'},
+    {ok:allFns().some(f=>fnFiles(f.name).fe.length+fnFiles(f.name).be.length+fnFiles(f.name).dbdesign.length>0),gap:true,t:`设计文档（功能级）：前端 ${allFns().reduce((a,f)=>a+fnFiles(f.name).fe.length,0)} · 后端 ${allFns().reduce((a,f)=>a+fnFiles(f.name).be.length,0)} · 数据库 ${allFns().reduce((a,f)=>a+fnFiles(f.name).dbdesign.length,0)}`,sub:'按功能维护；缺失项不阻断，S6 设计材料质检将登记缺失并呈报'},
+    {ok:assetGaps.length===0,gap:true,t:assetGaps.length?`${assetGaps.length} 个功能存在资产缺口（逆向/知识/数库均无）`:'功能资产：全部功能均有资产覆盖',sub:assetGaps.length?assetGaps.map(f=>esc(f.name)).join('、')+' · 缺口显式登记，S6 呈报':'逆向文档 / 功能知识 / 数据字典可供 S6 质检使用'}
+  ];
+  $('#checkList').innerHTML=checks.map(c=>`<div class="check-item"><span class="ic ${c.ok?'ok':c.gap?'warn':'bad'}">${c.ok?'✓':c.gap?'!':'✕'}</span><span><b>${c.t}</b>${c.sub?`<div class="ck-sub">${c.sub}</div>`:''}</span></div>`).join('');
+  const prdMissing=fns.filter(f=>!fnFiles(f.name).prd.length);
+  const blocked=prdMissing.length>0||!fns.length;
+  $('#blockBox').innerHTML=blocked?`<div class="warn-note"><b>存在阻断项：</b>${prdMissing.length?`以下功能缺少 PRD：${esc(prdMissing.map(f=>f.name).join('、'))}；`:''}${!fns.length?'未挂载任何业务功能；':''} 请返回补齐后再初始化。</div>`:'';
+  $('#initBtn').disabled=blocked;
+  $('#treePreview').innerHTML=buildTree();
+}
+function stockHas(s){return s&&(s.reverse||s.knowledge||s.db)}
+function viewBtn(name){return ` <button class="tree-view" data-view="${esc(name)}">查看</button>`}
+function fileLine(prefix,branch,f){return `${prefix}${branch}── ${esc(f.n)} <span class="dim">${esc(f.s)}</span>${viewBtn(f.n)}\n`}
+function subList(prefix,files,stockNote){
+  let s='';
+  files.forEach((f,i)=>{s+=fileLine(prefix+(i===files.length-1&&!stockNote?'    ':'│   '),i===files.length-1&&!stockNote?'└':'├',f)});
+  if(stockNote)s+=`${prefix}${files.length?'└':'├'}── <span class="dim">(来自功能库 · ${stockNote})</span>\n`;
+  if(!files.length&&!stockNote)s+=`${prefix}└── <span class="dim">(空 · 未上传)</span>\n`;
+  return s;
+}
+function buildTree(){
+  const pid=state.project.id||'<projectId>',pname=state.project.name||'项目';
+  const fns=allFns();
+  let t=`<span class="cm"># AI 运行时工作空间 · 软链接挂载后视图（⤳ = 链接自物理存储空间）</span>\n`;
+  t+=`<span class="dim">/home/instance/workspace/&lt;userId&gt;/&lt;agentId&gt;/</span>\n`;
+  t+=`└── <span class="okc">runtime_${esc(pid)}/</span>  <span class="cm"># ${esc(pname)}</span>\n`;
+  t+=`    ├── AGENTS.md  <span class="cm"># 上下文导航与读取规则</span>\n`;
+  t+=`    ├── .opencode/ {agent/ · tool/ · skills/}\n`;
+  t+=`    └── file/\n`;
+  fns.forEach((f,i)=>{
+    const lastFn=i===fns.length-1;
+    const A='        '+(lastFn?'    ':'│   ');      /* 功能节点子级前缀 */
+    const F=fnFiles(f.name);const dom=domainOf(f.name);const st=STOCK[f.name]||{};
+    const dk=state.domainFiles[dom]||[];
+    t+=`        ${lastFn?'└':'├'}── <span class="okc">${esc(f.code)}-${esc(f.name)}/</span>\n`;
+    /* domain-knowledge（软链接 → 领域知识） */
+    t+=`${A}├── <span class="lk">domain-knowledge/</span> <span class="cm">⤳ /home/test-case/&lt;bizDomainId&gt;/domain-knowledge/</span>\n`;
+    t+=subList(A+'    ',dk,null);
+    /* asset-library（软链接 → 功能资产集） */
+    t+=`${A}├── <span class="lk">asset-library/</span> <span class="cm">⤳ /home/test-case/&lt;bizDomainId&gt;/&lt;bizFunctionId&gt;/asset-library/</span>\n`;
+    const AL=A+'    ';
+    t+=`${AL}├── reverse-docs/\n`;
+    t+=subList(AL+'    ',F.reverse,st.reverse?`${st.reverse} 份库存`:'');
+    t+=`${AL}├── knowledge-docs/\n`;
+    t+=subList(AL+'    ',F.knowledge,st.knowledge?`${st.knowledge} 份库存`:'');
+    t+=`${AL}├── db-docs/\n`;
+    t+=subList(AL+'    ',F.db,st.db?`${st.db} 份库存`:'');
+    t+=`${AL}└── test-case/\n`;
+    t+=subList(AL+'    ',F.cases,st.cases?`存量用例 ${st.cases} 条`:'');
+    /* code（软链接 → 项目代码工程） */
+    t+=`${A}├── <span class="lk">code/</span> <span class="cm">⤳ /home/projects/${esc(pid)}/code/</span>\n`;
+    state.codebases.forEach((c,ci)=>{t+=`${A}    ${ci===state.codebases.length-1?'└':'├'}── <span class="dim">${esc(c.name)}/</span>\n`});
+    if(!state.codebases.length)t+=`${A}    └── <span class="dim">(空 · 未登记代码工程)</span>\n`;
+    /* output */
+    t+=`${A}├── output/ <span class="cm">{test-point/ · test-case/} # 产物，验收后归档</span>\n`;
+    /* 会话过程资料 */
+    t+=`${A}└── &lt;uuid&gt;/ <span class="cm"># 会话过程资料</span>\n`;
+    const U=A+'    ';
+    const inputs=[...F.prd.map(x=>({...x,tag:'PRD'})),...F.fe.map(x=>({...x,tag:'FE'})),...F.be.map(x=>({...x,tag:'BE'})),...F.dbdesign.map(x=>({...x,tag:'DB'}))];
+    t+=`${U}├── input/ <span class="cm"># 本次流程输入资料 · 用户上传 · 只读</span>\n`;
+    if(inputs.length)inputs.forEach((x,xi)=>{t+=fileLine(U+(xi===inputs.length-1?'    ':'│   '),xi===inputs.length-1?'└':'├',x)});
+    else t+=`${U}    └── <span class="dim">(未上传)</span>\n`;
+    t+=`${U}├── state.md <span class="cm"># 功能流程状态登记</span>\n`;
+    t+=`${U}├── scope.md <span class="cm"># 锚点底册</span>\n`;
+    t+=`${U}└── {prd-check.md · tp-check.md · design-check.md · tc-check.md}\n`;
+  });
+  return t;
+}
+function domainOf(fnName){return (state.domains.find(d=>d.fns.some(f=>f.name===fnName))||{}).name||''}
+$('#initBtn').onclick=()=>{
+  state.inited=true;$('#initPre').classList.add('hidden');$('#initDone').classList.remove('hidden');
+  $('#donePath').textContent=`/home/instance/workspace/<userId>/<agentId>/runtime_${state.project.id}/`;
+  const fns=allFns();
+  const prdTotal=fns.reduce((a,f)=>a+fnFiles(f.name).prd.length,0);
+  const gaps=fns.filter(f=>{const F=fnFiles(f.name),s=STOCK[f.name];return !(stockHas(s)||F.reverse.length||F.knowledge.length||F.db.length)}).length;
+  $('#statRow').innerHTML=[[state.domains.length,'业务领域'],[fns.length,'业务功能'],[prdTotal,'PRD(功能级)'],[state.codebases.length,'代码工程'],[gaps,'资产缺口(已登记)']].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  window.scrollTo({top:0});
+};
+
+/* ================= 初始渲染 ================= */
+$('#pName').value='雪狼项目';$('#pId').value='XL2026';$('#pOwner').value='张杰';
+$('#pDesc').value='零售信贷核心系统改造：贷款申请全流程线上化，含审批与限额控制。';
+renderStepper();renderCodebases();renderDomains();
+goto(1);
+</script>
+</body>
+</html>

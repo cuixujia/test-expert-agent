@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI测试用例工作台 · 雪狼项目</title>
+<style>
+:root{--blue:#2563eb;--blue-bg:#eff6ff;--green:#15803d;--amber:#a16207;--red:#b91c1c;--line:#e2e8f0;--muted:#64748b;--bg:#f5f7fb;--ink:#172033}
+*{box-sizing:border-box}html,body{height:100%;min-height:0;overflow:hidden}
+body{margin:0;color:var(--ink);background:var(--bg);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+button,textarea,input,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.hidden{display:none!important}.muted{color:var(--muted)}
+.topbar{height:56px;display:flex;align-items:center;gap:12px;padding:0 18px;background:#fff;border-bottom:1px solid var(--line)}.logo{width:31px;height:31px;border-radius:8px;background:var(--blue);color:#fff;display:grid;place-items:center;font-weight:750}.brand{font-weight:750;font-size:15px}.crumb{color:var(--muted);font-size:12px}.topright{margin-left:auto;color:var(--muted);font-size:12px}
+.btn{padding:8px 12px;border:1px solid #cbd5e1;background:#fff;border-radius:7px;color:#334155;font-weight:650;transition:background .18s,border-color .18s}.btn:hover{background:#f8fafc}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}.btn.primary:hover{background:#1d4ed8}.btn.sm{font-size:12px;padding:5px 9px}.btn.ghost-danger{color:var(--red);border-color:#fecaca}.btn.ghost-danger:hover{background:#fef2f2}
+.pill{display:inline-block;border-radius:20px;padding:3px 9px;font-size:11px;font-weight:700;background:#f1f5f9;color:#475569;white-space:nowrap}.pill.blue{background:#dbeafe;color:#1d4ed8}.pill.green{background:#dcfce7;color:#166534}.pill.amber{background:#fef3c7;color:#92400e}.pill.red{background:#fee2e2;color:#991b1b}.pill.gray{background:#f1f5f9;color:#64748b}
+.workbench{height:calc(100vh - 56px);height:calc(100dvh - 56px);display:grid;grid-template-columns:248px minmax(0,1fr) 352px;background:#fff}
+.left,.middle,.right{min-height:0;display:flex;flex-direction:column}
+.left{border-right:1px solid var(--line);background:#fff}
+.region-head{padding:13px 14px;border-bottom:1px solid var(--line)}.region-head h3{margin:0;font-size:14px}.region-head p{margin:3px 0 0;color:var(--muted);font-size:12px}
+.proj-box{padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--line);font-size:12px}.proj-box b{font-size:13px;display:block}
+.fn-list{flex:1;overflow:auto;padding:7px}
+.fn-item{display:flex;align-items:center;gap:9px;padding:10px 9px;margin:3px 0;border:1px solid transparent;border-radius:8px;cursor:pointer;width:100%;background:transparent;text-align:left}.fn-item:hover{background:#f8fafc}.fn-item.active{background:var(--blue-bg);border-color:#bfdbfe}
+.fn-code{font-size:11px;font-weight:750;background:#dbeafe;color:#1d4ed8;border-radius:5px;padding:2px 7px;flex:none;letter-spacing:.4px}
+.fn-name{font-size:13px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.left-foot{border-top:1px solid var(--line);padding:10px 12px;font-size:11px;color:var(--muted)}
+/* 中间 */
+.middle{background:#fbfcfe}
+.mid-head{background:#fff;border-bottom:1px solid var(--line);padding:12px 16px 0;flex:none}
+.mid-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.mid-title h2{font-size:16px;margin:0}.mid-title .sub{font-size:12px;color:var(--muted);margin:3px 0 0}
+.modebar{display:flex;gap:7px;align-items:center;margin-top:8px;font-size:12px;flex-wrap:wrap}
+.mode-indicator{border:1px solid #bfdbfe;border-radius:6px;padding:3px 9px;background:var(--blue-bg);color:#1d4ed8;font-weight:700;font-size:11px}
+.workflow{display:flex;overflow-x:auto;padding:10px 0 9px;scrollbar-width:thin}
+.node{flex:0 0 auto;border:0;background:transparent;border-bottom:3px solid transparent;padding:7px 9px;display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:11.5px;color:var(--muted);font-weight:650}
+.node .n{width:20px;height:20px;border:1px solid #cbd5e1;border-radius:50%;display:grid;place-items:center;background:#fff;font-size:10px}
+.node.done{color:var(--green)}.node.done .n{background:#dcfce7;border-color:#86efac}
+.node.current{color:var(--blue);border-bottom-color:var(--blue)}.node.current .n{background:var(--blue);color:#fff;border-color:var(--blue)}
+.node.gate::after{content:'◆';font-size:9px;color:var(--amber);margin-left:2px}
+.chat-scroll{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:13px;min-height:0}
+.date-label{text-align:center;color:#64748b;font-size:11px}
+.message{display:flex;gap:8px;max-width:94%;align-items:flex-start}
+.avatar{width:27px;height:27px;border-radius:8px;background:#dbeafe;color:#1d4ed8;display:grid;place-items:center;font-size:10px;font-weight:bold;flex:none}
+.avatar.qc{background:#fef3c7;color:#92400e}.avatar.me{background:#e2e8f0;color:#475569}
+.bubble{background:#fff;border:1px solid var(--line);padding:10px 13px;border-radius:3px 11px 11px 11px;font-size:13px;line-height:1.7;overflow-wrap:anywhere}
+.bubble b{font-size:13px}
+.bubble .bt{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px;margin-top:6px}
+.kv span:nth-child(odd){color:var(--muted)}
+.mini-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:7px;background:#fff}
+.mini-table th,.mini-table td{border:1px solid #e6ebf2;padding:5px 8px;text-align:left;vertical-align:top}
+.mini-table th{background:#f8fafc;font-weight:700;color:#475569;white-space:nowrap}
+.gate-card{border:1.5px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:12px 14px;max-width:94%}
+.gate-card .gt{font-weight:750;color:#92400e;display:flex;gap:7px;align-items:center;margin-bottom:6px}
+.gate-note{font-size:11px;color:#92400e;background:#fef3c7;border-radius:6px;padding:6px 9px;margin-top:8px}
+.composer{background:#fff;border-top:1px solid var(--line);padding:10px 14px;flex:none}
+.compose-row{display:flex;gap:8px;align-items:center}
+.compose-note{font-size:11px;color:#64748b;margin-top:6px}
+/* 右侧 */
+.right{border-left:1px solid var(--line);background:#fff}
+.tabs{display:flex;border-bottom:1px solid var(--line);flex:none}
+.tab{flex:1;border:0;background:transparent;padding:10px 4px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent}
+.tab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.art-body{flex:1;overflow:auto;padding:12px;min-height:0}
+.art-row{border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px;background:#fff}
+.art-row .ar-t{font-size:12.5px;font-weight:700;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.art-row .ar-s{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.6}
+.quote{border-left:3px solid #bfdbfe;background:#f8fafc;border-radius:0 6px 6px 0;padding:5px 9px;font-size:11.5px;color:#475569;margin-top:5px}
+.mat-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:7px;font-size:12px;background:#fff}
+.mat-row .mn{flex:1;min-width:0}.mat-row .mn b{display:block;font-size:12px}.mat-row .mn span{font-size:11px;color:var(--muted)}
+.stat-strip{display:flex;gap:7px;margin-bottom:10px}.stat-strip .st{flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 9px}.stat-strip .st span{display:block;font-size:10.5px;color:var(--muted)}.stat-strip .st b{font-size:16px}
+.empty-art{text-align:center;color:var(--muted);font-size:12px;padding:28px 10px;border:1px dashed #cbd5e1;border-radius:10px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:10px 14px;background:#172033;color:#fff;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:60}.toast.show{opacity:1}
+@media(max-width:1100px){.workbench{grid-template-columns:210px minmax(0,1fr) 300px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo" aria-hidden="true">AI</div><div class="brand">AI测试用例工作台</div><div class="crumb" id="crumb">雪狼项目</div>
+  <div class="topright">原型演示 · 不调用真实 Agent</div>
+</header>
+
+<main class="workbench">
+  <!-- 左：项目与功能清单 -->
+  <aside class="left">
+    <div class="region-head"><h3>业务功能清单</h3><p>单次流程针对一个业务功能生成测试用例</p></div>
+    <div class="proj-box"><b>雪狼项目（XL2026）</b><span class="muted">工作空间已初始化 · runtime_XL2026</span></div>
+    <div class="fn-list" id="fnList"></div>
+    <div class="left-foot">切换功能不影响进行中的流程；已完成功能的产物可在右侧查看。</div>
+  </aside>
+
+  <!-- 中：流程主区 -->
+  <section class="middle">
+    <div class="mid-head">
+      <div class="mid-title">
+        <div><h2 id="ctxTitle">—</h2><p class="sub" id="ctxSub">—</p></div>
+        <span class="pill amber" id="ctxStatus">—</span>
+      </div>
+      <div class="modebar"><span class="muted">规则</span><span class="mode-indicator">可选资料 · 缺失即跳过</span><span class="muted">质检由质检 Agent 独立执行；生成与确认分步留痕</span></div>
+      <nav class="workflow" id="workflow" aria-label="核心流程"></nav>
+    </div>
+    <div class="chat-scroll" id="chatScroll"><div class="date-label">任务对话</div></div>
+    <div class="composer">
+      <div class="compose-row">
+        <button class="btn primary" id="mainAction">开始资料质检（测试点）</button>
+        <span class="muted" style="font-size:12px" id="actionHint"></span>
+      </div>
+      <div class="compose-note">门禁仅接受：通过 / 调整@编号 说明 / 退回；其他措辞不视为确认。</div>
+    </div>
+  </section>
+
+  <!-- 右：关键产物 -->
+  <aside class="right">
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="mats" role="tab">资料清单</button>
+      <button class="tab" data-tab="tp" role="tab">测试点</button>
+      <button class="tab" data-tab="tc" role="tab">测试用例</button>
+      <button class="tab" data-tab="qc" role="tab">质检报告</button>
+    </div>
+    <div class="art-body" id="artBody"></div>
+  </aside>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ================= 工作空间数据（与初始化原型同源示例） ================= */
+const TP_SEED=[
+ ['TP-LBSH-001','验证贷款申请提交后进入待审批状态','PRD §3.1「提交成功后，申请单流转至待审批列表」'],
+ ['TP-LBSH-002','验证审批通过后自动生成放款任务','PRD §3.4「审批通过后，系统自动生成放款任务」'],
+ ['TP-LBSH-003','验证审批金额超过剩余额度被拒绝','PRD §4.2「审批金额不得超过项目剩余额度」'],
+ ['TP-LBSH-004','验证审批意见为空时无法提交审批结果','PRD §3.3「审批意见为必填项」'],
+ ['TP-LBSH-005','验证被退回的申请可修改后重新提交','PRD §3.5「退回申请可编辑后重新提交」']];
+const TC_SEED=[
+ ['TC-LBSH-001','提交完整申请单，状态变为待审批','TP-LBSH-001','P0','正向'],
+ ['TC-LBSH-002','审批通过，系统生成放款任务','TP-LBSH-002','P0','正向'],
+ ['TC-LBSH-003','审批金额=剩余额度+100 元，审批被拒绝','TP-LBSH-003','P1','边界'],
+ ['TC-LBSH-004','审批意见留空提交，页面提示必填','TP-LBSH-004','P1','反向'],
+ ['TC-LBSH-005','退回申请修改后重新提交成功','TP-LBSH-005','P2','流程'],
+ ['TC-LBSH-006','审批金额为 0 元，被拒绝并给出提示','TP-LBSH-003','P2','异常']];
+/* mats 键：prd 领域知识domain 逆向reverse 功能知识knowledge 存量测试点etp 前端fe 后端be 数据库db 存量用例etc */
+const FN_STATE={
+ '贷款申请审批':{code:'LBSH',domain:'信贷管理',status:'进行中',stage:0,rounds:0,
+   mats:{prd:['贷款申请审批-需求说明书-v1.3.md'],domain:['信贷业务产品要素说明.md','信贷术语与状态机.md'],reverse:['reverse.md'],knowledge:['审批流程规则.md'],etp:[],
+         fe:['审批页面前端设计.md'],be:['审批服务接口设计.md'],db:['审批库表设计.md'],etc:['存量用例集-2025Q3.json']},
+   etpNote:'',etcNote:'存量 45 条 · 2025Q3 归档',tps:null,tpStatus:'—',tcs:null,tcStatus:'—',qc:[]},
+ '贷款申请受理':{code:'SQSL',domain:'信贷管理',status:'待开工',stage:0,rounds:0,
+   mats:{prd:['贷款申请受理-需求说明书-v1.1.md'],domain:['信贷业务产品要素说明.md','信贷术语与状态机.md'],reverse:[],knowledge:[],etp:[],
+         fe:[],be:['受理服务接口设计.md'],db:[],etc:[]},
+   etpNote:'',etcNote:'',tps:null,tpStatus:'—',tcs:null,tcStatus:'—',qc:[]},
+ '转账限额维护':{code:'ZHZX',domain:'支付结算',status:'待开工',stage:0,rounds:0,
+   mats:{prd:['转账限额维护-需求说明书-v0.9.md'],domain:['清算业务规则汇编.md'],reverse:[],knowledge:[],etp:[],
+         fe:['限额设置页面设计.md'],be:['限额服务接口设计.md'],db:[],etc:[]},
+   etpNote:'',etcNote:'',tps:null,tpStatus:'—',tcs:null,tcStatus:'—',qc:[]},
+ '贷后管理':{code:'DHGL',domain:'信贷管理',status:'已完成',stage:9,rounds:0,
+   mats:{prd:['贷后管理-需求说明书-v2.0.md'],domain:['信贷业务产品要素说明.md'],reverse:['reverse.md'],knowledge:[],etp:['存量测试点-贷后.json'],
+         fe:['贷后工作台设计.md'],be:['贷后服务接口设计.md'],db:['贷后库表设计.md'],etc:['存量用例集-2025Q2.json']},
+   etpNote:'存量 38 条',etcNote:'存量 62 条',tps:'archived',tpStatus:'已确认',tcs:'archived',tcStatus:'已确认',
+   qc:[['测试点质检','轮次 1 · 38/38 通过'],['用例质检','轮次 1 · 62/62 通过 · TP 覆盖 100%']]}
+};
+let cur='贷款申请审批',artTab='mats';
+
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let toastTimer;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2200)}
+const F=()=>FN_STATE[cur];
+
+/* ================= 左侧功能清单 ================= */
+function renderFnList(){
+  $('#fnList').innerHTML=Object.entries(FN_STATE).map(([name,s])=>`
+    <button class="fn-item ${name===cur?'active':''}" data-fn="${esc(name)}">
+      <span class="fn-code">${esc(s.code)}</span><span class="fn-name">${esc(name)}</span>
+      <span class="pill ${s.status==='已完成'?'green':s.status==='进行中'?'amber':'gray'}">${s.status}</span>
+    </button>`).join('');
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-fn]');if(!b)return;
+  cur=b.dataset.fn;renderFnList();renderHeader();renderWorkflow();renderArt();
+  $('#chatScroll').innerHTML='<div class="date-label">任务对话</div>';
+  const s=F();
+  addMsg('me',`切换至「${cur}」${s.stage>0&&s.stage<9?`，当前处于阶段 ${s.stage+1}，可继续推进`:s.stage===9?'，流程已完成，产物可查看':''}。`);
+  syncAction();
+});
+
+/* ================= 上下文与流程条 ================= */
+const STAGES=[
+ {n:'资料质检 · 测试点',gate:0},{n:'生成测试点',gate:0},{n:'测试点质检 · 确认',gate:1},
+ {n:'资料质检 · 用例',gate:0},{n:'生成测试用例',gate:0},{n:'用例质检 · 确认',gate:1}];
+function renderHeader(){
+  const s=F();
+  $('#ctxTitle').textContent=`${s.code}-${cur} · 测试用例生成`;
+  $('#ctxSub').textContent=`所属业务领域：${s.domain} · 物料挂载自 runtime_XL2026`;
+  $('#ctxStatus').textContent=s.status;
+  $('#ctxStatus').className='pill '+(s.status==='已完成'?'green':s.status==='进行中'?'amber':'gray');
+  $('#crumb').textContent=`雪狼项目 / ${s.domain} / ${cur}`;
+}
+function renderWorkflow(){
+  const s=F();
+  $('#workflow').innerHTML=STAGES.map((st,i)=>{
+    const done=s.stage>i||s.stage===9,curS=s.stage===i;
+    return `<button class="node ${done?'done':''} ${curS?'current':''} ${st.gate?'gate':''}"><span class="n">${done?'✓':i+1}</span>${st.n}</button>`;
+  }).join('');
+}
+
+/* ================= 对话流 ================= */
+function addMsg(role,html){
+  const av=role==='agent'?'<div class="avatar">测</div>':role==='qc'?'<div class="avatar qc">检</div>':'<div class="avatar me">我</div>';
+  const who=role==='agent'?'<b>测试设计专家</b>':role==='qc'?'<b>测试质检专家</b>':'<b>我</b>';
+  const el=document.createElement('div');el.className='message';
+  el.innerHTML=`${av}<div class="bubble">${who}${html}</div>`;
+  $('#chatScroll').appendChild(el);$('#chatScroll').scrollTop=1e9;
+}
+function matRow(name,desc,required,files,skipNote){
+  const has=files&&files.length;
+  const st=has?'<span class="pill green">使用</span>':required?'<span class="pill red">缺失 · 必须</span>':'<span class="pill gray">跳过 · 缺失</span>';
+  const src=has?esc(files.join('、')):(skipNote||'空间中不存在');
+  return `<div class="mat-row"><span class="mn"><b>${esc(name)} ${required?'<span class="pill red">必须</span>':'<span class="pill gray">可选</span>'}</b><span>${esc(desc)} · 来源：${src}</span></span>${st}</div>`;
+}
+function checkReport(kind){
+  const m=F().mats;const tp=[matRow('PRD 需求文档','测试点溯源基准',1,m.prd),matRow('领域知识','业务规则 / 产品要素',0,m.domain),matRow('逆向文档','功能现状梳理',0,m.reverse),matRow('功能知识','功能级业务知识',0,m.knowledge),matRow('存量测试点','历史测试点参考',0,m.etp,m.etpNote?`存量资产：${m.etpNote}`:'')];
+  const tc=tp.slice(0,4).concat([matRow('存量测试点','历史测试点参考',0,m.etp,m.etpNote?`存量资产：${m.etpNote}`:''),matRow('前端设计','页面 / 交互逻辑依据',1,m.fe),matRow('后端设计','接口 / 服务逻辑依据',1,m.be),matRow('数据库设计','库表与数据约束',0,m.db),matRow('存量测试用例','历史用例参考',0,m.etc,m.etcNote?`存量资产：${m.etcNote}`:'')]);
+  return kind==='tp'?tp:tc;
+}
+function blockCheck(kind){
+  const m=F().mats;
+  if(kind==='tp'&&!m.prd.length)return 'PRD 缺失，无法建立测试点溯源基准';
+  if(kind==='tc'&&(!m.fe.length||!m.be.length))return '前端设计'+(m.fe.length?'':'与后端设计')+'缺失（必须资料）';
+  return null;
+}
+
+/* ================= 流程推进 ================= */
+function doStage(){
+  const s=F();const st=s.stage;
+  if(st===0){ /* 资料质检 TP */
+    const blk=blockCheck('tp');if(blk)return toast('阻断：'+blk);
+    addMsg('agent','开始<b>测试点资料质检</b>——逐项核对工作空间物料：');
+    addMsg('qc','<b>资料质检完成 · '+STAGES[0].n+'</b>'+checkReport('tp').join('')+'<div style="margin-top:7px">可选资料缺失即跳过，不影响推进；必须资料缺失将阻断本阶段。</div>');
+    s.stage=1;
+  }else if(st===1){ /* 生成测试点 */
+    addMsg('agent','基于 PRD 与可用资料，生成<b>测试点</b>（每条挂 PRD 原文依据）：');
+    addMsg('agent','<div class="mini-table"><tr><th>编号</th><th>验证目标</th><th>依据</th></tr>'+TP_SEED.map(t=>`<tr><td><b>${t[0]}</b></td><td>${t[1]}</td><td>${esc(t[2])}</td></tr>`).join('')+'</div><div style="margin-top:7px">共 '+TP_SEED.length+' 条，编号只增不改不复用。</div>');
+    s.tps=TP_SEED.map(t=>[...t]);s.tpStatus='草稿';s.stage=2;
+  }else if(st===2){ /* TP 质检 */
+    s.rounds++;
+    addMsg('qc',`<b>测试点质检（第 ${s.rounds} 轮）</b>：逐条语义核对 + 形式校验。<div class="kv"><span>形式校验</span><span>编号 / 摘录长度 · 通过</span><span>语义核对</span><span>TP-LBSH-003 摘录超出 40 字 → 已退回生成方修复</span><span>复检结论</span><span>修复后复检通过 · 5/5</span></div>`);
+    s.qc.push(['测试点质检',`第 ${s.rounds} 轮 · 修复 1 项后 5/5 通过`]);
+    addMsg('agent','质检问题已修复并复检通过，请确认测试点基线。');
+    s.tpStatus='已定稿';s.stage=3;renderGate('测试点',s.rounds);
+  }else if(st===3){ /* gate 在对话内，主按钮不适用 */
+  }else if(st===4){ /* 资料质检 TC */
+    const blk=blockCheck('tc');if(blk)return toast('阻断：'+blk);
+    addMsg('agent','开始<b>测试用例资料质检</b>（在测试点资料基础上，追加设计与用例资料）：');
+    addMsg('qc','<b>资料质检完成 · '+STAGES[3].n+'</b>'+checkReport('tc').join(''));
+    s.stage=5;
+  }else if(st===5){ /* 生成用例 */
+    addMsg('agent','基于已确认测试点与设计资料，生成<b>测试用例</b>（十字段，示例列关键项）：');
+    addMsg('agent','<div class="mini-table"><tr><th>编号</th><th>标题</th><th>关联 TP</th><th>优先级</th><th>类型</th></tr>'+TC_SEED.map(t=>`<tr><td><b>${t[0]}</b></td><td>${t[1]}</td><td>${t[2]}</td><td>${t[3]}</td><td>${t[4]}</td></tr>`).join('')+'</div><div style="margin-top:7px">共 '+TC_SEED.length+' 条，每条只挂一个测试点。</div>');
+    s.tcs=TC_SEED.map(t=>[...t]);s.tcStatus='草稿';s.stage=6;
+  }else if(st===6){ /* TC 质检 */
+    s.rounds++;
+    addMsg('qc',`<b>测试用例质检（第 ${s.rounds} 轮）</b>：逐条核对 + TP 覆盖校验。<div class="kv"><span>覆盖校验</span><span>TP 覆盖 5/5 · 无未覆盖豁免</span><span>语义核对</span><span>TC-LBSH-006 优先级标注有误 → 已退回修复</span><span>复检结论</span><span>修复后复检通过 · 6/6</span></div>`);
+    s.qc.push(['用例质检',`第 ${s.rounds} 轮 · 修复 1 项后 6/6 通过 · TP 覆盖 100%`]);
+    addMsg('agent','质检问题已修复并复检通过，请对测试用例作最终确认。');
+    s.tcStatus='已定稿';s.stage=7;renderGate('测试用例',s.rounds);
+  }else if(st===7){}
+  renderWorkflow();renderFnList();renderArt();syncAction();
+}
+function renderGate(kind,round){
+  const back=kind==='测试点'?'生成测试点（阶段 2）':'生成测试用例（阶段 5）';
+  const el=document.createElement('div');el.className='message';
+  el.innerHTML=`<div class="avatar me"></div><div class="gate-card" style="flex:1">
+    <div class="gt">◆ 人工门禁 · 请确认${kind}基线（质检第 ${round} 轮已通过）</div>
+    <div style="font-size:12.5px;line-height:1.7">定稿摘要已同步至右侧「${kind==='测试点'?'测试点':'测试用例'}」页签，无待决问题。请答复：<b>通过</b> ／ <b>调整@编号 说明</b> ／ <b>退回</b>（退回将回到${back}）。</div>
+    <div class="gate-note">任何其他措辞不视为确认；确认记录追加留痕，不覆盖历史。</div>
+    <div style="display:flex;gap:7px;margin-top:9px;flex-wrap:wrap">
+      <button class="btn primary sm" data-gate="pass">通过</button>
+      <button class="btn sm" data-gate="adj">调整@编号…</button>
+      <button class="btn ghost-danger sm" data-gate="back">退回</button>
+    </div></div>`;
+  $('#chatScroll').appendChild(el);$('#chatScroll').scrollTop=1e9;
+}
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-gate]');if(!g)return;
+  const s=F();const kind=s.stage===3?'测试点':'测试用例';
+  if(g.dataset.gate==='pass'){
+    addMsg('me','通过');
+    addMsg('agent',`已登记确认：${kind}基线生效`+(kind==='测试点'?'，进入测试用例资料质检。':'，全部流程完成 🎉 产物已归档至 output/ 并同步物理存储。'));
+    if(kind==='测试点'){s.stage=4}
+    else{s.stage=9;s.status='已完成';s.tpStatus='已确认';s.tcStatus='已确认'}
+  }else if(g.dataset.gate==='adj'){
+    const no=prompt('输入要调整的编号（如 TP-LBSH-003）：');if(!no)return;
+    const note=prompt('调整说明：')||'';
+    addMsg('me',`调整@${no} ${note}`);
+    addMsg('agent',`调整意见已登记：${no} 将修订后重新送质检复检（轮次 +1）。`);
+    s.stage=kind==='测试点'?2:6;addMsg('qc',`复检完成：${no} 修订有效，本轮 0 问题。`);s.stage=kind==='测试点'?3:7;renderGate(kind,s.rounds+1);s.rounds++;
+  }else{
+    addMsg('me','退回');
+    addMsg('agent',`已退回：按门禁去向回退到${kind==='测试点'?'生成测试点（阶段 2）':'生成测试用例（阶段 5）'}，之前产物保留「曾经通过」痕迹。`);
+    s.stage=kind==='测试点'?1:5;
+  }
+  renderWorkflow();renderFnList();renderArt();syncAction();
+});
+
+/* ================= 主按钮 ================= */
+function syncAction(){
+  const s=F();const b=$('#mainAction'),h=$('#actionHint');
+  const map={0:['开始资料质检（测试点）','先核对工作空间物料：必须缺失将阻断，可选缺失自动跳过'],
+    1:['生成测试点','基于 PRD 与可用资料生成，每条挂原文依据'],
+    2:['提交测试点质检','质检 Agent 独立检查，生成与检查分离'],
+    3:['','等待门禁确认：通过 / 调整@编号 / 退回'],
+    4:['开始资料质检（测试用例）','追加前端 / 后端设计（必须）与数据库设计、存量用例（可选）'],
+    5:['生成测试用例','基于已确认测试点生成，每条只挂一个 TP'],
+    6:['提交用例质检','含 TP 覆盖校验'],
+    7:['','等待门禁确认：通过 / 调整@编号 / 退回'],
+    9:['流程已完成','产物已归档，可在右侧页签查看']};
+  const[txt,hint]=map[s.stage]||['',''];
+  b.textContent=txt;b.disabled=!txt||s.stage===3||s.stage===7||s.stage===9;
+  h.textContent=hint;
+}
+$('#mainAction').onclick=doStage;
+
+/* ================= 右侧产物 ================= */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+  artTab=t.dataset.tab;renderArt();
+});
+function renderArt(){
+  const s=F();const el=$('#artBody');
+  if(artTab==='mats'){
+    el.innerHTML=`<div class="stat-strip"><div class="st"><b>${Object.values(s.mats).filter(a=>a.length).length}</b><span>可用物料</span></div><div class="st"><b>${[ 'prd','fe','be' ].filter(k=>!s.mats[k].length).length}</b><span>必须缺失</span></div></div>
+      <h3 style="margin:2px 0 7px;font-size:12.5px">测试点生成资料</h3>${checkReport('tp').join('')}
+      <h3 style="margin:12px 0 7px;font-size:12.5px">测试用例生成资料（追加）</h3>${['fe','be','db','etc'].map(k=>({fe:matRow('前端设计','页面 / 交互逻辑依据',1,s.mats.fe),be:matRow('后端设计','接口 / 服务逻辑依据',1,s.mats.be),db:matRow('数据库设计','库表与数据约束',0,s.mats.db),etc:matRow('存量测试用例','历史用例参考',0,s.mats.etc,s.etcNote?`存量资产：${s.etcNote}`:'')}[k])).join('')}`;
+  }else if(artTab==='tp'){
+    if(s.stage<2||!s.tps){el.innerHTML='<div class="empty-art">尚未生成测试点。<br>推进至「生成测试点」后，此处展示 TP 台账。</div>';return}
+    el.innerHTML=`<div class="stat-strip"><div class="st"><b>${s.tps.length}</b><span>测试点</span></div><div class="st"><b>${s.tps.length}/${s.tps.length}</b><span>PRD 依据挂载</span></div><div class="st"><b>${esc(s.tpStatus)}</b><span>状态</span></div></div>`+
+      s.tps.map(t=>`<div class="art-row"><div class="ar-t"><b>${esc(t[0])}</b><span class="pill">${esc(s.tpStatus)}</span></div><div class="ar-s">${esc(t[1])}</div><div class="quote">依据 · ${esc(t[2])}</div></div>`).join('');
+  }else if(artTab==='tc'){
+    if(s.stage<6||!s.tcs){el.innerHTML='<div class="empty-art">尚未生成测试用例。<br>测试点基线确认后，推进至「生成测试用例」。</div>';return}
+    el.innerHTML=`<div class="stat-strip"><div class="st"><b>${s.tcs.length}</b><span>用例</span></div><div class="st"><b>5/5</b><span>TP 覆盖</span></div><div class="st"><b>${esc(s.tcStatus)}</b><span>状态</span></div></div>`+
+      s.tcs.map(t=>`<div class="art-row"><div class="ar-t"><b>${esc(t[0])}</b><span class="pill ${t[3]==='P0'?'red':t[3]==='P1'?'amber':'blue'}">${t[3]}</span><span class="pill ${t[4]==='异常'?'red':t[4]==='边界'?'blue':'green'}">${t[4]}</span><span class="pill gray">↳ ${esc(t[2])}</span></div><div class="ar-s">${esc(t[1])}</div></div>`).join('');
+  }else{
+    el.innerHTML=s.qc.length?s.qc.map(q=>`<div class="art-row"><div class="ar-t"><b>${esc(q[0])}</b></div><div class="ar-s">${esc(q[1])}</div></div>`).join(''):'<div class="empty-art">暂无质检报告。<br>提交质检后按轮次追加留痕。</div>';
+  }
+}
+
+/* ================= 初始化 ================= */
+renderFnList();renderHeader();renderWorkflow();renderArt();syncAction();
+addMsg('agent','工作空间已就绪。当前目标功能：<b>'+cur+'</b>。可先在右侧「资料清单」核对物料，点击下方按钮开始<b>测试点资料质检</b>。');
+</script>
+</body>
+</html>

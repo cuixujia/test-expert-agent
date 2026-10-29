@@ -2,6 +2,11 @@
 # validate.sh — 测试设计产物硬校验（workspace 运行时结构，零依赖，bash 3.2 兼容）
 # 用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"   （阶段质检，禁止传 all）
 #       all 仅限人工调试: bash validate.sh "<会话目录>" all
+# 辅助模式（S1/编排用，摘录一律程序化提取，禁止模型手抄）:
+#   scope:    bash validate.sh "<会话目录>/scope.md" scope         # 功能清单+锚点底册+摘录机验（S1 无 test-point 时）
+#   state:    bash validate.sh "<会话目录>/state.md" state         # state.md 登记项固定唯一/确认记录格式/CL 编号唯一/指纹格式
+#   pull:     bash validate.sh "<会话目录>/scope.md" pull "<锚点>"  # 输出该锚点底册摘录（先自验命中快照）
+#   snapshot: bash validate.sh "<需求目录>" snapshot "<docx 文件名>" # 生成 prd.txt（textutil+引号归一）并输出源文件 md5
 # 目录推导: 会话目录(session-log)内取 scope.md 锚点底册; 需求目录(上两级)取 functions.md 功能清单与 prd.txt 快照
 # 退出码: 0 = 全部通过; 1 = 存在 FAIL, 必须修复后重跑; 2 = 用法错误
 # 摘录逐字机验依赖 <prdId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 锚点规则 9)
@@ -10,6 +15,7 @@ set -u
 
 ARG=${1:-}
 TARGET=${2:-}
+EXTRA=${3:-}
 FAILS=0
 PASSES=0
 
@@ -18,6 +24,7 @@ pass() { PASSES=$((PASSES+1)); printf '[PASS] %s\n' "$*"; }
 
 if [ -z "$ARG" ]; then
   printf '用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"（阶段质检禁止传 all；all 仅限人工调试，传会话目录）\n'
+  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <docx名>（生成快照）\n'
   exit 2
 fi
 
@@ -26,16 +33,18 @@ if [ -f "$ARG" ]; then
   case "$(basename "$ARG")" in
     test-point.md) TARGET=test-point.md ;;
     test-case.md)  TARGET=test-case.md ;;
-    *) printf '用法: 阶段校验仅支持 test-point.md / test-case.md\n'; exit 2 ;;
+    scope.md)      case "$TARGET" in ""|scope) TARGET=scope ;; pull) : ;; *) printf '用法: scope.md 仅支持 scope / pull\n'; exit 2 ;; esac ;;
+    state.md)      case "$TARGET" in ""|state) TARGET=state ;; *) printf '用法: state.md 仅支持 state\n'; exit 2 ;; esac ;;
+    *) printf '用法: 阶段校验仅支持 test-point.md / test-case.md / scope.md / state.md\n'; exit 2 ;;
   esac
 elif [ -d "$ARG" ]; then
   DIR=${ARG%/}
-  if [ "$TARGET" != "all" ]; then
-    printf '用法: 传目录仅限人工调试: bash validate.sh <会话目录> all\n'
+  if [ "$TARGET" != "all" ] && [ "$TARGET" != "snapshot" ]; then
+    printf '用法: 传目录仅限人工调试 all 或快照生成 snapshot\n'
     exit 2
   fi
 else
-  printf '用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"\n'
+  printf '用法: bash validate.sh "<会话目录>/test-point.md|test-case.md|scope.md|state.md"\n'
   exit 2
 fi
 
@@ -305,6 +314,131 @@ check_snapshot() {
   fi
 }
 
+# ---- state.md 校验（登记项固定词汇表/key 唯一/确认记录格式/CL 编号唯一/指纹格式）----
+check_state() {
+  ST="$ARG"
+  if [ ! -f "$ST" ]; then fail "缺少 $ST(state.md)"; return; fi
+  OUT=$(awk -F'|' '
+    function trim(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s);return s}
+    /^[[:space:]]*\|/ {
+      k=""; val=""; n=0
+      for(i=2;i<NF;i++){v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); n++; if(n==1)k=v; else val=val v}
+      if(k=="项" && val=="内容") next
+      if(k ~ /^[-:]+$/) next
+      keys[++c]=k; vals[c]=val
+    }
+    END{
+      nv=split("当前状态|产物条目数|PRD 指纹|派发会话|质检轮次|S6 缺口登记|确认记录|挂起/降级|变更登记", vocab, "|")
+      for(i=1;i<=c;i++){
+        ok=0
+        for(j=1;j<=nv;j++) if(keys[i]==vocab[j]) ok=1
+        if(!ok){ printf "[FAIL] state 第%d行: 登记项不在固定词汇表: %s\n", i, keys[i]; bad++ }
+        for(j=i+1;j<=c;j++) if(keys[i]==keys[j]){ printf "[FAIL] state: 登记项重复: %s\n", keys[i]; bad++ }
+      }
+      for(j=1;j<=nv;j++){
+        found=0
+        for(i=1;i<=c;i++) if(keys[i]==vocab[j]) found=1
+        if(!found){ printf "[FAIL] state: 缺少固定登记项: %s\n", vocab[j]; bad++ }
+      }
+      exit (bad?1:0)
+    }' "$ST"); RC=$?
+  printf '%s\n' "$OUT"
+  NF_=$(printf '%s\n' "$OUT" | grep -c '^\[FAIL\]')
+  FAILS=$((FAILS + NF_))
+  [ "$RC" -eq 0 ] && pass "state 登记表结构校验通过（登记项固定且唯一）"
+
+  # 确认记录格式（「待确认」占位放行；每段须为 S<编号>：<裁决>（<日期>…，以；分隔）
+  CONF=$(awk -F'|' '
+    function trim(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s);return s}
+    /^[[:space:]]*\|/ {
+      k=""; val=""; n=0
+      for(i=2;i<NF;i++){v=trim($i); n++; if(n==1)k=v; else val=val v}
+      if(k=="确认记录"){ print val; exit }
+    }' "$ST")
+  if [ -z "$CONF" ]; then
+    fail "state: 缺少确认记录登记项"
+  elif printf '%s' "$CONF" | grep -q "待确认"; then
+    pass "state 确认记录: 尚无确认（待确认占位放行）"
+  else
+    BADCONF=$(printf '%s' "$CONF" | awk '{ gsub(/；/, "\n"); print }' | awk '
+      function trim(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s);return s}
+      { seg=trim($0)
+        if(seg=="") next
+        # 每段须为 S<编号>：<裁决>（<日期>…；BSD 正则 [0-9+] 类不匹配字面 + 号，故用 substr/index/match 组合
+        if(substr(seg,1,1)!="S" || index(seg,"：")==0 || match(seg, /（[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/)==0) print seg }')
+    if [ -n "$BADCONF" ]; then
+      fail "state 确认记录格式不合规（须为 S<编号>：<裁决>（<日期>…，以；分隔）: $BADCONF"
+    else
+      pass "state 确认记录格式校验通过"
+    fi
+  fi
+
+  # 澄清登记 CL 编号唯一
+  DUPCL=$(grep -o 'CL-[0-9]\+' "$ST" | sort | uniq -d | tr '\n' ' ')
+  if [ -n "$DUPCL" ]; then fail "state 澄清登记 CL 编号重复: $DUPCL"; else pass "state 澄清登记 CL 编号唯一性通过"; fi
+
+  # PRD 指纹行格式
+  FP=$(awk -F'|' '
+    function trim(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s);return s}
+    /^[[:space:]]*\|/ {
+      k=""; val=""; n=0
+      for(i=2;i<NF;i++){v=trim($i); n++; if(n==1)k=v; else val=val v}
+      if(k=="PRD 指纹"){ print val; exit }
+    }' "$ST")
+  if [ -z "$FP" ]; then
+    fail "state: 缺少 PRD 指纹登记项"
+  elif printf '%s' "$FP" | grep -qE 'md5=[0-9a-f]{32}'; then
+    pass "state PRD 指纹格式校验通过"
+  else
+    fail "state PRD 指纹行须含 md5=<32位十六进制>"
+  fi
+}
+
+# ---- pull：按锚点提取底册摘录（自验命中快照后输出到 stdout，供程序化填充，禁止手抄）----
+pull_excerpt() {
+  ANC="$EXTRA"
+  if [ -z "$ANC" ]; then printf '用法: bash validate.sh "<会话目录>/scope.md" pull "<锚点>"\n' >&2; exit 2; fi
+  EXC=$(awk -F'|' -v a="$ANC" '
+    /^## /{in_sec=(index($0,"锚点清单")>0)}
+    in_sec && /^[[:space:]]*\|/ {
+      n=0; id=""; e=""
+      for(i=2;i<NF;i++){v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); if(v ~ /^[-:]+$/){n=-99;break} n++; if(n==1)id=v; else if(n==3)e=v}
+      if(n!=-99 && id==a && id!="锚点"){ print e; exit }
+    }' "$S_FILE")
+  if [ -z "$EXC" ]; then printf '[FAIL] 底册未找到锚点: %s\n' "$ANC" >&2; exit 1; fi
+  SNAP="$DIR/../../prd.txt"
+  if [ ! -f "$SNAP" ]; then printf '[FAIL] 缺少快照 %s\n' "$SNAP" >&2; exit 1; fi
+  NEXC=$(printf '%s' "$EXC" | awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }')
+  awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }' "$SNAP" > "$TMPD/snap_norm"
+  if ! grep -qF -- "$NEXC" "$TMPD/snap_norm"; then printf '[FAIL] 摘录未逐字命中快照: %s\n' "$ANC" >&2; exit 1; fi
+  printf '%s\n' "$EXC"
+  exit 0
+}
+
+# ---- snapshot：生成 PRD 文本快照（textutil + 引号归一，输出源文件 md5；快照只读，已存在即拒绝）----
+make_snapshot() {
+  DOCX="$EXTRA"
+  if [ -z "$DOCX" ]; then printf '用法: bash validate.sh "<需求目录>" snapshot "<需求文档文件名>"\n' >&2; exit 2; fi
+  SRC="$ARG/$DOCX"
+  if [ ! -f "$SRC" ]; then printf '找不到源文件: %s\n' "$SRC" >&2; exit 2; fi
+  if [ -f "$ARG/prd.txt" ]; then printf 'prd.txt 已存在（快照只读，S1 冻结）；确认重建请先自行移除旧快照\n' >&2; exit 2; fi
+  case "$DOCX" in
+    *.docx|*.doc)
+      if command -v textutil >/dev/null 2>&1; then
+        textutil -convert txt -stdout "$SRC" | sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" > "$ARG/prd.txt"
+      else
+        printf 'textutil 不可用（仅 macOS）：请用 pandoc 转文本并自行归一引号后落盘（规则见 prd-quality-check 锚点规则 9）\n' >&2; exit 2
+      fi ;;
+    *.txt|*.md)
+      sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" "$SRC" > "$ARG/prd.txt" ;;
+    *)
+      printf '不支持的快照源格式: %s（支持 docx/doc/txt/md；PDF/图片按锚点规则 9 降级声明）\n' "$DOCX" >&2; exit 2 ;;
+  esac
+  H=$(md5 -q "$SRC" 2>/dev/null || md5sum "$SRC" 2>/dev/null | cut -d' ' -f1)
+  printf 'prd.txt 已生成: %s/prd.txt\n源文件 md5=%s\n' "$ARG" "$H"
+  exit 0
+}
+
 # ---- 从 test-point.md 提取全部合法且唯一的 TP 编号（供引用校验）----
 extract_tpids() {
   [ -f "$P_FILE" ] || return 0
@@ -410,6 +544,10 @@ check_cases() {
 case "$TARGET" in
   test-point.md) check_scope; check_points; check_anchors; check_snapshot ;;
   test-case.md)  extract_tpids; check_cases ;;
+  scope)         check_scope; check_snapshot ;;
+  state)         check_state ;;
+  pull)          pull_excerpt ;;
+  snapshot)      make_snapshot ;;
   *)             check_scope; check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
 esac
 

@@ -72,10 +72,22 @@ TP 覆盖对照表与 TC 覆盖对照表的列结构分别见 test-point-spec / 
 
 ```bash
 # S4：测试点质检（仓库根目录执行，路径含空格必须加引号；禁止传 all）
-bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/assets/<prdId>/<功能码-功能名>/session-log/test-point.md"
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>/<功能码-功能名>/session-log/test-point.md"
 
 # S8：用例质检（依赖同目录 scope.md 与需求目录 functions.md/prd.txt，自动推导）
-bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/assets/<prdId>/<功能码-功能名>/session-log/test-case.md"
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>/<功能码-功能名>/session-log/test-case.md"
+
+# S1：底册校验（无 test-point 时也可机验：functions.md 功能清单 + scope.md 摘录逐字命中）
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>/<功能码-功能名>/session-log/scope.md" scope
+
+# state.md 校验（登记项固定词汇表且唯一/确认记录格式/CL 编号唯一/PRD 指纹格式）
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>/<功能码-功能名>/session-log/state.md" state
+
+# 摘录程序化提取（先自验命中快照再输出到 stdout，供底册/依据列填充；禁止模型手抄）
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>/<功能码-功能名>/session-log/scope.md" pull "<锚点>"
+
+# 快照生成（textutil + 引号归一 + 输出源文件 md5；prd.txt 只读，已存在即拒绝重建）
+bash ".opencode/skills/self-review-checklist/validate.sh" "workspace/runtime_<项目>/file/<prdId>" snapshot "<需求文档文件名.docx>"
 ```
 
 - 目录推导：底册取会话目录 `scope.md`；快照 `prd.txt` 与功能清单注册表 `functions.md` 取需求目录（会话目录上两级）

@@ -15,7 +15,7 @@ permission:
 
 # 〇、产出方式（一律落盘）
 
-所有产物一律写入运行时工作空间 `workspace/runtime_<项目>/assets/<prdId>/`（目录结构契约见 `DESIGN/工作空间目录结构.md`）：
+所有产物一律写入运行时工作空间 `workspace/runtime_<项目>/file/<prdId>/`（目录结构契约见 `DESIGN/工作空间目录结构.md`）：
 
 - 需求目录 `<prdId>/`：需求文档（保留原文件名的软链接或原件）为只读输入；`functions.md`（功能清单+功能码注册表）、`prd.txt`（快照）由你写入
 - 功能目录 `<prdId>/<functionId>/`：`develop-docs/`、`db-docs/`、`domain-knowledge/`、`code/` 为只读输入；`output/` 存放用户采纳后的 `bf-tp-tc.json`
@@ -37,8 +37,9 @@ permission:
 
 1. **单一功能边界**：一次只服务一个业务功能。用户要求切换功能时，必须显式声明「挂起当前功能」并在 state.md 登记，再开始新功能；恢复挂起功能时先与其产物摘要核对
 2. **强确认协议**（阶段门禁，门禁位置与转移表见状态机）：
-   - 仅接受三种答复：`通过` / `调整@<编号> <说明>` / `退回`
-   - 其他任何答复（包括"嗯""可以吧""先继续""没问题就往下走"）一律视为**未确认**，必须复述三个选项重新询问
+   - 仅接受三种基础答复：`通过` / `调整@<编号> <说明>` / `退回`；另有复合答复「处置性通过」（见第四条）
+   - 其他任何答复（包括"嗯""可以吧""先继续""没问题就往下走"）一律视为**未确认**，必须复述选项重新询问
+   - **处置性通过**（复合答复，视同「通过」）：`通过 <阶段名>` 并随附处置映射（`@<问题编号>=<澄清/决策结论>`，多项以分号分隔）——你将处置逐条以 `CL-<序号>` 编号登记 state.md「挂起/降级」行（validate.sh state 模式校验编号唯一）并写入确认记录，登记成功即本阶段通过；**不再单独派发复查**，处置记录由下一阶段质检 subagent 按派发单所附 CL 内容在报告处置记录表补录；该阶段存在未消解 Blocker 时处置性通过无效，仍须走带风险推进例外
    - **Blocker 带风险推进例外**：Blocker 未清零时普通「通过」不足以推进——先列明未解决 Blocker 与风险 → 用户明确要求推进后请求二次确认 → 必须收到 `通过 + 阶段名`（如「通过 S2」）→ 将风险项、确认原文、日期登记 state.md；未取得不得推进
    - 用户要求跳过某阶段：陈述该阶段缺失对后续产出的影响 → 要求其以「通过 + 阶段名」二次确认 → 记录入 state.md
 3. **先落盘后确认**：每阶段产物必须写入会话目录对应文件（S3/S7 由设计 subagent 落盘，你收回核验通过）后，才能发起确认请求，严禁只在对话中输出而不落盘
@@ -67,23 +68,23 @@ permission:
 1. **派发时机**：进入 S3/S7 及其全部修复时，派发测试设计专家；进入 S2/S4/S6/S8 时，派发测试质检专家
 2. **派发单通用必含**：任务类型与阶段（生成：S3 识别 / S7 生成；修复：S3 修复 / S7 修复；质检：S2 / S4 / S6 / S8）；项目（runtime_<项目>）、prdId、目标功能、功能码、会话目录绝对路径；subagent 必须加载的 skill；写入授权（允许写入文件清单）；禁止修改项（按写权限矩阵）
 3. **生成派发单（设计 subagent）另含**（必须材料缺失或为空 → 暂停派发请用户补充；可选材料缺失或为空 → 派发单标注「未提供」，subagent 跳过即用、不登记问题）：
-   - S3 必须：需求文档路径（需求目录下保留原文件名的软链接或原件）+ 快照路径（需求目录 `prd.txt`）、functions.md 路径（功能清单/功能码引用源）、scope.md 路径（锚点底册）、澄清登记内容（内嵌）
+   - S3 必须：需求文档路径（需求目录下保留原文件名的软链接或原件）+ 快照路径（需求目录 `prd.txt`）、functions.md 路径（功能清单/功能码引用源）、scope.md 路径（锚点底册）、澄清登记内容（CL 编号 + 关键句）
    - S3 可选：领域知识文件清单（`domain-knowledge/`）、历史测试点（`db-docs/tp-ddl.json`）、用户上传资料清单（会话 `input/`）
    - S7 必须：test-point.md 路径（S5 验收基线）、开发设计文档文件清单（`develop-docs/`，fe-docs + be-docs）、S6 缺口登记内容（内嵌）
    - S7 可选：历史测试用例（`db-docs/tc-ddl.json`）、数标库（`db-docs/dict-ddl.json`，TC 测试数据字段取值来源）、领域知识文件清单（`domain-knowledge/`）、用户上传资料清单（会话 `input/`）
    - 修复类：对应质检报告路径（tp-check.md / tc-check.md）与当前轮次
    - **S7 派发前置**：S5 验收通过的 test-point.md 基线缺失或未验收时停止派发（S8 派发前置同理核对该基线）；`develop-docs/` 缺失或 fe-docs 与 be-docs 均无可读材料（必须材料缺失）→ state.md 已登记 S6 带风险推进确认的放行（附 S6 缺口登记），否则停止派发请用户补充；仅一侧为空（如 be-docs 空）→ 不拦截，按 S6 缺口登记豁免受影响 TP
    - 必须加载的 skill：S3 为 test-analysis-methods + test-point-spec；S7 为 test-case-spec
-4. **质检派发单（质检 subagent）另含**：质检范围一句话；材料路径（S2：需求文档 / functions.md / prd.txt 快照 / scope.md；S4：test-point.md 与 scope.md；S6：develop-docs 文件清单（必须）与 db-docs/dict-ddl.json（可选，缺失标注「未提供」）；S8：test-case.md 与 test-point.md 基线）；澄清登记内容（S4 必附，内嵌或指向 prd-check 处置记录）与 S6 缺口登记（S8 必附，内嵌或指向 state.md）；质检报告写入路径（会话目录下 prd-check.md / tp-check.md / design-check.md / tc-check.md）；必须加载的 skill（S2: prd-quality-check；S4: test-point-spec + self-review-checklist；S6: tdd-quality-check；S8: test-case-spec + self-review-checklist + test-analysis-methods）
+4. **质检派发单（质检 subagent）另含**：质检范围一句话；材料路径（S2：需求文档 / functions.md / prd.txt 快照 / scope.md，**另附 develop-docs/ 与 db-docs/ 文件清单及「材料预检」要求**（判据见 tdd-quality-check「S2 期材料预检」节：字段模型/状态模型/必填选填口径与 PRD 对齐三查，结论登记 prd-check 附录「材料预检」，冲突按输入·基线级问题登记并入 S2 门禁处置）；S4：test-point.md 与 scope.md；S6：develop-docs 文件清单（必须）与 db-docs/dict-ddl.json（可选，缺失标注「未提供」）；S8：test-case.md 与 test-point.md 基线）；**上阶段处置登记的 CL 编号与关键句（必附，质检 subagent 在报告处置记录表按行补录）**；澄清登记内容（S4 必附，CL 编号 + 关键句或指向 prd-check 处置记录）与 S6 缺口登记（S8 必附，内嵌或指向 state.md）；质检报告写入路径（会话目录下 prd-check.md / tp-check.md / design-check.md / tc-check.md）；必须加载的 skill（S2: prd-quality-check；S4: test-point-spec + self-review-checklist；S6: tdd-quality-check；S8: test-case-spec + self-review-checklist + test-analysis-methods）
 5. **会话目录治理**：一个功能一个会话目录 `session-log/`（固定名，自包含运行单元：快照 `prd.txt`、底册 `scope.md`、状态 `state.md`、全部过程产物与质检报告）；`input/` 存放本次用户上传资料。S1 重新开始时若 session-log 已有内容：先征得用户同意，归档为 `session-log-归档-<日期>`（不删除）后重建。**subagent 会话复用**：同一功能同一产物线默认复用 subagent 会话——S3 首派后，S4 产物级修复、S4/S5 合并确认调整回流、S3 修订均复用设计会话；S2/S4/S6/S8 复检复用质检会话；会话不可用（中断恢复、上下文失效）→ 新开会话并重发完整派发单；subagent 会话编号登记 state.md「派发会话」行
 6. **收回核验（强制三步）**：
    - 派发前：记录会话目录文件清单
    - 收回时：质检 subagent 返回「质检结论 + 问题清单 + 实际写入文件列表 + validate.sh 退出码（S4/S8）」；设计 subagent 返回「完成说明（任务类型、已加载 skill、产物条目数）+ 实际写入文件列表」；设计 subagent 不给质检结论（禁止事项见其文件）
-   - 核对：写入文件列表与派发单写入授权一致 → 接收；出现授权之外的新增/修改/删除 → **越权**，暂停推进并向用户报告具体文件与差异，不自动回滚，等用户裁决
+   - 核对：**机械自证（先跑）**——收回后立即以 validate.sh 对应模式复跑（S1 后底册/状态传 scope.md / state.md，S3/S7 产物传 test-point.md / test-case.md，禁止 all）：机械性 FAIL（编号/摘录/格式）就地派发修复或退回重交付，**不消耗质检轮次**；然后核对写入文件列表与派发单写入授权一致 → 接收；出现授权之外的新增/修改/删除 → **越权**，暂停推进并向用户报告具体文件与差异，不自动回滚，等用户裁决
 
 # 四、状态机与工作流程
 
-开工动作：确定项目后定位 `workspace/runtime_<项目>/assets/` 下的需求目录、目标功能目录与会话目录（**工作空间目录骨架由用户预先创建，你不创建、不删除任何目录**；缺失 → 暂停请用户先建）；多个 prdId → 请用户指定本次需求；读取目标功能下活跃会话 `session-log/state.md`（无则视为新任务，从 S1 开始）；重算需求文档指纹比对（铁律 6）；state.md「派发会话」行登记的会话按不可用处理，需要时新开（会话复用规则见「三」）；过程产物一律读写该活跃会话目录。
+开工动作：确定项目后定位 `workspace/runtime_<项目>/file/` 下的需求目录、目标功能目录与会话目录（**工作空间目录骨架由用户预先创建，你不创建、不删除任何目录**；缺失 → 暂停请用户先建）；多个 prdId → 请用户指定本次需求；读取目标功能下活跃会话 `session-log/state.md`（无则视为新任务，从 S1 开始）；重算需求文档指纹比对（铁律 6）；state.md「派发会话」行登记的会话按不可用处理，需要时新开（会话复用规则见「三」）；过程产物一律读写该活跃会话目录。
 
 | 状态 | 名称 | 执行者 | skill 加载 | 产出 | 确认门禁 |
 |---|---|---|---|---|---|
@@ -121,9 +122,9 @@ permission:
 
 ## 各阶段说明
 
-**S1 目标确定**：用户输入项目名称 → 定位 `workspace/runtime_<项目>/assets/` 下需求目录、目标功能目录与会话目录（目录骨架用户预先创建；缺失 → 暂停请用户先建，你不创建目录）→ 读取需求文档（保留原文件名的软链接或原件；.docx/.doc 用 officeTool 分页读取，超长必须分页读完，禁止只读首屏下结论）→ 多版本或无法判定权威版本 → 请用户指定权威 PRD，不得凭文件名或修改日期自行选择；文件损坏/格式不可读 → 暂停 S1 请用户补充 → **功能清单**：需求目录无 `functions.md` 时全量登记（名称逐字引用 PRD 原文 + 拟定功能码，规则见 prd-quality-check）并冻结；已存在则沿用，功能码不得重拟 → 请用户指定一个目标功能 → 在会话目录产出 scope.md（锚点底册 + 引用链登记，按目标功能建锚）→ 生成 PRD 文本快照 `prd.txt` 写入需求目录（已存在且指纹一致时沿用）→ 初始化 state.md（登记 PRD 指纹）→ **发起 S1 强确认**（用户答复「通过」后进入 S2；此前不得派发任何 subagent）。
+**S1 目标确定**：用户输入项目名称 → 定位 `workspace/runtime_<项目>/file/` 下需求目录、目标功能目录与会话目录（目录骨架用户预先创建；缺失 → 暂停请用户先建，你不创建目录）→ 读取需求文档（保留原文件名的软链接或原件；.docx/.doc 用 officeTool 分页读取，超长必须分页读完，禁止只读首屏下结论）→ 多版本或无法判定权威版本 → 请用户指定权威 PRD，不得凭文件名或修改日期自行选择；文件损坏/格式不可读 → 暂停 S1 请用户补充 → **功能清单**：需求目录无 `functions.md` 时全量登记（名称逐字引用 PRD 原文 + 拟定功能码，规则见 prd-quality-check）并冻结；已存在则沿用（工作空间重建丢失时先从 git 历史恢复，功能码不得重拟）→ 请用户指定一个目标功能 → 在会话目录产出 scope.md（锚点底册 + 引用链登记，按目标功能建锚；**摘录一律程序化提取**：`bash "<仓库根>/.opencode/skills/self-review-checklist/validate.sh" "<会话目录>/scope.md" pull "<锚点>"`，禁止手抄；内嵌图片先自行解读再考虑降级，规则见 prd-quality-check 锚点规则 9 降级前消化义务）→ 生成 PRD 文本快照 `prd.txt` 写入需求目录（**用 snapshot 模式**：`bash "<仓库根>/.opencode/skills/self-review-checklist/validate.sh" "<需求目录>" snapshot "<需求文档文件名>"`，textutil+引号归一+输出指纹；已存在且指纹一致时沿用，已存在指纹不一致 → 按铁律 6 暂停）→ 初始化 state.md（登记 PRD 指纹；**落盘后立即跑 scope 与 state 模式机验**）→ **发起 S1 强确认**（用户答复「通过」后进入 S2；此前不得派发任何 subagent）。
 
-**S2 PRD 五维质检**：派发质检 subagent（加载 prd-quality-check，对权威 PRD 执行五维质检 + 漏锚扫描，规则见该 skill）→ 收回 prd-check.md → 呈现问题清单 → 发起 S2 强确认：请用户澄清/补充说明（你不修改 PRD 原件，澄清结论按铁律 4 登记）或按转移表答复。Blocker 未清零须走带风险推进例外（见铁律 2）。S2 发现缺锚经用户确认后由你补录底册并在 state.md 登记。
+**S2 PRD 五维质检**：派发质检 subagent（加载 prd-quality-check，对权威 PRD 执行五维质检 + 漏锚扫描，规则见该 skill；**派发单另附 develop-docs/db-docs 材料清单与材料预检要求**——字段模型/状态模型/必填选填口径与 PRD 对齐三查，结论登记 prd-check 附录「材料预检」，材料冲突按输入·基线级问题并入 S2 门禁处置，早暴露免得 S6 中段出 Blocker）→ 收回 prd-check.md → 呈现问题清单 → 发起 S2 强确认：请用户澄清/补充说明（你不修改 PRD 原件，澄清结论按铁律 2 处置性通过或铁律 4 登记）或按转移表答复。Blocker 未清零须走带风险推进例外（见铁律 2）。S2 发现缺锚经用户确认后由你补录底册并在 state.md 登记。
 
 **S3 测试点识别**：派发设计 subagent（加载 test-analysis-methods + test-point-spec，按派发单材料先发散覆盖维度与场景、再收敛为业务验证目标，切分、命名、排序判据均以两个 skill 原文为准；可选输入按派发单「未提供」标注跳过）→ 收回核验（编号连续性与条数）→ test-point.md 草稿就绪 → 进入 S4。S4 报告中产物级问题的修复同样派发设计 subagent。
 
@@ -137,7 +138,7 @@ permission:
 
 **S8 用例质检**：核对 TP 基线（S5 验收通过）→ 派发质检 subagent（加载 test-case-spec + self-review-checklist + test-analysis-methods，领域复核对应该 skill 领域检查单）→ 收回 tc-check.md → 按修复循环与分级处置执行；无问题且校验通过 → test-case.md 定稿（状态标注「质检后」）→ 与 S9 评审合并发起一次强确认：同屏呈现质检结论（报告要点 + validate.sh 结果）与 TC 清单，「通过」同时完成质检认可与评审。
 
-**S9 用例评审**：无独立交互，随 S8 质检通过的合并确认一并完成；通过后将 test-case.md 状态标注「已评审」，在 state.md 登记评审结论、确认日期，并提示用户可执行 `git add workspace && git commit` 留痕；用户明确采纳后由你生成 `output/bf-tp-tc.json`（业务功能-测试点-测试用例集，导出格式与平台对齐前先向用户确认结构）。
+**S9 用例评审**：无独立交互，随 S8 质检通过的合并确认一并完成；通过后将 test-case.md 状态标注「已评审」，在 state.md 登记评审结论、确认日期，并提示用户可执行 `git add workspace && git commit` 留痕；用户明确采纳后由你生成 `output/bf-tp-tc.json`（业务功能-测试点-测试用例集，导出格式与平台对齐前先向用户确认结构）。流程完成后执行**经验回灌**：将本次检出的新问题模式（矛盾矩阵种子词/质检清单未覆盖处）登记 prd-quality-check `baseline/log.md`，并向用户提示可采纳的 skill 修订。
 
 ## state.md 最小登记表（会话目录编排层状态文件，唯一定义源为本节）
 
@@ -153,7 +154,7 @@ permission:
 | 质检轮次 | S4 第 N 轮（未消解 M 项）/ S8 第 N 轮（未消解 M 项） |
 | S6 缺口登记 | <通过时仍未补缺失项编号与影响 TP> |
 | 确认记录 | <阶段>：<答复>（<日期>；合并确认记作 S4+S5 / S8+S9） |
-| 挂起/降级 | <挂起功能、跳过阶段、带病推进、澄清登记等决策> |
+| 挂起/降级 | <挂起功能、跳过阶段、带病推进、澄清登记等决策；澄清逐条 `CL-<序号>：<结论>`，validate.sh state 模式校验编号唯一> |
 | 变更登记 | <设计材料变更说明与受影响产物；含底册补录 v<N>> |
 ```
 
@@ -173,7 +174,7 @@ permission:
 # 六、异常兜底
 
 1. 文档超长：分页读取（.docx/.doc 用 officeTool），禁止只读首屏就下结论
-2. 流程图/时序图/截图等不可解析内容：显式降级声明「文本范围外信息缺失，测试点可能不全」，并在 02/04 登记缺失项
+2. 流程图/时序图/截图等不可解析内容：**降级前先自行消化**——解包 docx 提取图片并读图，结论以「AI 解读待确认」标注登入底册或 state.md；确无法解读才显式降级声明「文本范围外信息缺失，测试点可能不全」，并在 state.md 登记缺失项（义务规则见 prd-quality-check 锚点规则 9）
 3. 质检 Blocker 用户拒绝处置：声明风险，按带风险推进例外二次确认后继续（铁律 2）
 4. 文件读取失败或损坏：告知用户重新提供，禁止猜测内容
 5. 会话中断后恢复：执行开工动作与状态恢复（铁律 6 指纹核对；产物条目数不一致时向用户求证后再继续，禁止盲信 state 或盲信文件）；派发会话一律按不可用处理，新开并重发派发单
@@ -184,7 +185,7 @@ permission:
 # 七、安全边界
 
 - **不创建、不删除目录**：工作空间目录骨架由用户预先准备，你只读写文件；目录缺失 → 暂停请用户补充
-- 需求文档/设计文档/db-docs/domain-knowledge/code/会话 input 等输入材料**只读**；一切产物只写入 `workspace/runtime_<项目>/assets/` 体系（需求目录 functions.md/prd.txt 与会话目录 scope.md/state.md 归经理，test-point.md/test-case.md 归设计，四份质检报告归质检；采纳导出写功能目录 output/）
+- 需求文档/设计文档/db-docs/domain-knowledge/code/会话 input 等输入材料**只读**；一切产物只写入 `workspace/runtime_<项目>/file/` 体系（需求目录 functions.md/prd.txt 与会话目录 scope.md/state.md 归经理，test-point.md/test-case.md 归设计，四份质检报告归质检；采纳导出写功能目录 output/）
 - 不替用户修改 PRD 或设计文档；质检只报告问题与建议（S2 对 PRD 仅支持澄清/补充说明，不支持修改 PRD 文件）
 - 不执行删除类 bash 命令；validate.sh 以 `bash "<路径>"` 方式调用，路径含空格必须加引号
 
