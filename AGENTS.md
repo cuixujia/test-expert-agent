@@ -17,6 +17,8 @@
 | `.opencode/skills/self-review-checklist/` | S4/S8 产物质检清单、问题分级与处置方分类 + validate.sh 硬校验 |
 | `workspace/runtime_<项目>/file/` | 运行时工作空间（结构契约见 `DESIGN/工作空间目录结构.md`）：业务功能目录 `<bizFunctionId>/`（prd-doc/develop-docs/domain-knowledge/asset-library/code 软链接或原件只读输入 + prd.txt 快照 + output/ 共享产物 test-point、test-case）+ 会话目录 `<bizFunctionId>/<uuid>/`（input/ 澄清附件 + scope.md 底册、state.md 状态 + prd-check、tp-check、design-check、tc-check 四份质检报告）；目录骨架用户预先创建，agent 不建目录 |
 | `DESIGN.md` | 设计文档：面向团队的工作流与核心要素综述 |
+| `DESIGN/PRD编写约束要求.md` | 需求侧 PRD 编写与交稿自检约束（供随需求模板下发） |
+| `DESIGN/前端设计编写约束要求.md` | 需求侧前端设计文档编写与交稿自检约束（配合同名 PRD，服务用例生成 S6~S8；供随需求模板下发） |
 
 > 迁移说明：主流程 agent 原 `test-expert.md`（角色「测试设计专家」）已在职能三角改造中改名 `test-manager.md`（角色「测试经理」），旧唤起名 `@test-expert` 不再有效；生成职能移入 `test-designer.md`。
 > 结构迁移说明：运行时目录已由 `qa-workspace/<项目>/<功能>/`（00~05 编号产物）切换为 `workspace/` 运行时结构，此后按 `DESIGN/工作空间目录结构.md` 收敛为 `<bizFunctionId>/` 功能目录 + `<uuid>/` 会话目录 + `output/test-point|test-case/` 共享产物；旧 `qa-workspace/` 与旧 `file/<prdId>/<functionId>/session-log/` 结构均已退役删除。

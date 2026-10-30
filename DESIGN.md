@@ -177,6 +177,7 @@ flowchart LR
 | `.opencode/skills/self-review-checklist/` | S4/S8 质检清单、问题分级与处置方、覆盖对照表、validate.sh |
 | `DESIGN/工作空间目录结构.md` | 运行时目录结构契约（工作空间与物理存储两层） |
 | `DESIGN/PRD编写约束要求.md` | 需求侧 PRD 编写与交稿自检约束（供随需求模板下发） |
+| `DESIGN/前端设计编写约束要求.md` | 需求侧前端设计文档编写与交稿自检约束（配合同名 PRD，服务用例生成 S6~S8；供随需求模板下发） |
 | `workspace/runtime_<项目>/file/` | 运行时工作空间：业务功能目录（只读输入 + prd.txt 快照 + output/ 共享产物 test-point、test-case）+ 会话目录 `<uuid>/`（input/ + scope.md、state.md + 四份质检报告） |
 
 > 迁移说明：主流程 agent 原 `test-expert.md`（角色「测试设计专家」）已在职能三角改造中改名 `test-manager.md`（角色「测试经理」），旧唤起名 `@test-expert` 不再有效；生成职能移入 `test-designer.md`。
