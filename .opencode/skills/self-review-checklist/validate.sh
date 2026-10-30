@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# validate.sh — 测试设计产物硬校验（workspace 运行时结构，零依赖，bash 3.2 兼容）
-# 用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"   （阶段质检，禁止传 all）
+# validate.sh — 测试设计产物硬校验（workspace 新运行时结构，零依赖，bash 3.2 兼容）
+# 结构: runtime_<projectId>/file/<bizFunctionId>/<uuid>/（会话目录）+ <bizFunctionId>/output/test-point|test-case/（共享产物）
+# 用法: bash validate.sh "<会话目录>" test-point|test-case   （阶段质检，禁止传 all）
 #       all 仅限人工调试: bash validate.sh "<会话目录>" all
 # 辅助模式（S1/编排用，摘录一律程序化提取，禁止模型手抄）:
-#   scope:    bash validate.sh "<会话目录>/scope.md" scope         # 功能清单+锚点底册+摘录机验（S1 无 test-point 时）
+#   scope:    bash validate.sh "<会话目录>/scope.md" scope         # 锚点底册+摘录机验（S1）
 #   state:    bash validate.sh "<会话目录>/state.md" state         # state.md 登记项固定唯一/确认记录格式/CL 编号唯一/指纹格式
 #   pull:     bash validate.sh "<会话目录>/scope.md" pull "<锚点>"  # 输出该锚点底册摘录（先自验命中快照）
-#   snapshot: bash validate.sh "<需求目录>" snapshot "<docx 文件名>" # 生成 prd.txt（textutil+引号归一）并输出源文件 md5
-# 目录推导: 会话目录(session-log)内取 scope.md 锚点底册; 需求目录(上两级)取 functions.md 功能清单与 prd.txt 快照
+#   snapshot: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"  # 生成 <功能目录>/prd.txt（textutil+引号归一）并输出源文件 md5
+# 目录推导: 会话目录(<uuid>)内取 scope.md; 功能目录(上一级)取 prd.txt 快照与 prd-doc/ 原件;
+#           产物取 <功能目录>/output/test-point/test-point.md 与 output/test-case/test-case.md
 # 退出码: 0 = 全部通过; 1 = 存在 FAIL, 必须修复后重跑; 2 = 用法错误
-# 摘录逐字机验依赖 <prdId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 锚点规则 9)
+# 功能码: TP/TC 编号功能码直接取平台 bizFunctionId(不注册清单文件), 编号格式为 TP-<功能码>-NNN / TC-<功能码>-NNN
+#        逐行校验编号功能码段必须等于所在功能目录名(防跨功能串号)
+# 摘录逐字机验依赖 <bizFunctionId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 锚点规则 9)
 # 注意: macOS awk length() 按字节计数, 摘录长度校验用 wc -m
 set -u
 
@@ -23,35 +27,33 @@ fail() { FAILS=$((FAILS+1)); printf '[FAIL] %s\n' "$*"; }
 pass() { PASSES=$((PASSES+1)); printf '[PASS] %s\n' "$*"; }
 
 if [ -z "$ARG" ]; then
-  printf '用法: bash validate.sh "<会话目录>/test-point.md|test-case.md"（阶段质检禁止传 all；all 仅限人工调试，传会话目录）\n'
-  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <docx名>（生成快照）\n'
+  printf '用法: bash validate.sh "<会话目录>" test-point|test-case（阶段质检；禁止传 all）\n'
+  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <PRD文件名>（生成快照，传功能目录）\n'
   exit 2
 fi
 
 if [ -f "$ARG" ]; then
   DIR=$(dirname "$ARG")
   case "$(basename "$ARG")" in
-    test-point.md) TARGET=test-point.md ;;
-    test-case.md)  TARGET=test-case.md ;;
     scope.md)      case "$TARGET" in ""|scope) TARGET=scope ;; pull) : ;; *) printf '用法: scope.md 仅支持 scope / pull\n'; exit 2 ;; esac ;;
     state.md)      case "$TARGET" in ""|state) TARGET=state ;; *) printf '用法: state.md 仅支持 state\n'; exit 2 ;; esac ;;
-    *) printf '用法: 阶段校验仅支持 test-point.md / test-case.md / scope.md / state.md\n'; exit 2 ;;
+    *) printf '用法: 阶段质检请传会话目录+模式: bash validate.sh "<会话目录>" test-point|test-case（产物在功能目录 output/ 下，不再按文件直传）\n'; exit 2 ;;
   esac
 elif [ -d "$ARG" ]; then
   DIR=${ARG%/}
-  if [ "$TARGET" != "all" ] && [ "$TARGET" != "snapshot" ]; then
-    printf '用法: 传目录仅限人工调试 all 或快照生成 snapshot\n'
-    exit 2
-  fi
+  case "$TARGET" in
+    test-point|test-case|all|snapshot) : ;;
+    *) printf '用法: 传目录须带模式: test-point / test-case（阶段质检）、snapshot（快照生成）、all（仅人工调试）\n'; exit 2 ;;
+  esac
 else
-  printf '用法: bash validate.sh "<会话目录>/test-point.md|test-case.md|scope.md|state.md"\n'
+  printf '用法: bash validate.sh "<会话目录>" test-point|test-case；辅助模式见脚本头注释\n'
   exit 2
 fi
 
 S_FILE="$DIR/scope.md"
-F_FILE="$DIR/../../functions.md"
-P_FILE="$DIR/test-point.md"
-C_FILE="$DIR/test-case.md"
+P_FILE="$DIR/../output/test-point/test-point.md"
+C_FILE="$DIR/../output/test-case/test-case.md"
+FNID=$(basename "$(dirname "$DIR")")   # 功能目录名=平台 bizFunctionId; TP/TC 编号功能码必须与其一致
 
 TMPD=$(mktemp -d) || exit 2
 TPIDS="$TMPD/tp_ids"    # test-point.md 中全部合法 TP 编号（每行一个）
@@ -60,71 +62,10 @@ TPANCH="$TMPD/tp_anchors"  # test-point.md 主表依据列提取的锚点（每�
 : > "$TPIDS"; : > "$TCTPS"; : > "$TPANCH"
 trap 'rm -rf "$TMPD"' EXIT
 
-# ---- functions.md 功能清单结构校验（名称原文/编号/功能码，全局注册表）----
-check_scope() {
-  if [ ! -f "$F_FILE" ]; then fail "缺少 $F_FILE(功能清单注册表)"; return; fi
-  OUT=$(awk -F'|' '
-    function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
-    /^[[:space:]]*\|/ && !done {
-      if (!hdr) {
-        if ($0 ~ /模块名称/ && $0 ~ /功能名称/ && $0 ~ /功能码/) {
-          n=0; delete col
-          for (i=2; i<NF; i++) {
-            v=trim($i)
-            if (v ~ /^[-:]+$/) continue
-            n++
-            if (index(v,"模块名称")==1)      col["mname"]=n
-            else if (index(v,"功能名称")==1) col["fname"]=n
-            else if (index(v,"功能码")==1)   col["code"]=n
-            else if (index(v,"模块编号")==1) col["mno"]=n
-            else if (index(v,"功能编号")==1) col["fno"]=n
-          }
-          if (("mname" in col) && ("fname" in col) && ("code" in col)) { hdr=1; next }
-        }
-        next
-      }
-      n=0; delete f
-      for (i=2; i<NF; i++) {
-        v=trim($i)
-        if (v ~ /^[-:]+$/) { n=-99; break }
-        n++; if (n==1 && v=="模块编号") { n=-99; break }
-        f[n]=v
-      }
-      if (n==-99) next
-      row++
-      if (f[col["mname"]]=="") { printf "[FAIL] functions 功能清单第%d数据行: 模块名称为空\n", row; bad++ }
-      if (f[col["fname"]]=="") { printf "[FAIL] functions 功能清单第%d数据行: 功能名称为空\n", row; bad++ }
-      c=f[col["code"]]
-      if (c=="") { printf "[FAIL] functions 功能清单第%d数据行: 功能码为空\n", row; bad++ }
-      else if (c !~ /^[A-Za-z0-9]{1,6}$/) { printf "[FAIL] functions 功能清单第%d数据行: 功能码格式非法: %s\n", row, c; bad++ }
-      else if (seen[c]++) { printf "[FAIL] functions 功能清单第%d数据行: 功能码重复: %s\n", row, c; bad++ }
-      if ("mno" in col) {
-        m=f[col["mno"]]
-        if (m !~ /^M[A-Za-z]{0,5}-?[0-9]{1,3}$/) { printf "[FAIL] functions 功能清单第%d数据行: 模块编号格式非法: %s\n", row, m; bad++ }
-      }
-      if ("fno" in col) {
-        fn=f[col["fno"]]
-        if (fn !~ /^[A-Za-z]{1,4}-?[0-9]{1,4}$/) { printf "[FAIL] functions 功能清单第%d数据行: 功能编号格式非法: %s\n", row, fn; bad++ }
-      }
-      next
-    }
-    !/^[[:space:]]*\|/ && hdr && !done { done=1 }
-    END {
-      if (!hdr) { print "[FAIL] functions 缺少功能清单表(需含模块名称/功能名称/功能码列)"; bad++ }
-      else if (row==0) { print "[FAIL] functions 功能清单无数据行"; bad++ }
-      exit (bad ? 1 : 0)
-    }
-  ' "$F_FILE"); RC=$?
-  printf '%s\n' "$OUT"
-  NF_=$(printf '%s\n' "$OUT" | grep -c '^\[FAIL\]')
-  FAILS=$((FAILS + NF_))
-  [ "$RC" -eq 0 ] && pass "functions 功能清单结构校验通过（功能码全局唯一）"
-}
-
 # ---- test-point.md 行内校验（格式/唯一/必填/锚点）----
 check_points() {
   if [ ! -f "$P_FILE" ]; then fail "缺少 $P_FILE"; return; fi
-  OUT=$(awk -F'|' -v tpanch="$TPANCH" '
+  OUT=$(awk -F'|' -v tpanch="$TPANCH" -v fid="$FNID" '
     /^## / { stop=1 }
     stop { next }
     /^[[:space:]]*\|/ {
@@ -137,8 +78,10 @@ check_points() {
       }
       if (n==-99) next
       id=f[1]; row++
-      if (id !~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/) {
+      if (id !~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) {
         printf "[FAIL] test-point 第%d数据行: TP编号格式非法: %s\n", row, id; bad++
+      } else if (id !~ ("^TP-" fid "-[0-9]{3,}$")) {
+        printf "[FAIL] test-point 第%d数据行: TP功能码与功能目录名不符: %s(本功能 %s)\n", row, id, fid; bad++
       } else if (seen[id]++) {
         printf "[FAIL] test-point 第%d数据行: TP编号重复: %s\n", row, id; bad++
       }
@@ -228,7 +171,7 @@ check_snapshot() {
     pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-quality-check 锚点规则 9)"
     return
   fi
-  SNAP="$DIR/../../prd.txt"
+  SNAP="$DIR/../prd.txt"
   if [ ! -f "$SNAP" ]; then
     fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-quality-check 锚点规则 9)"
     return
@@ -296,7 +239,7 @@ check_snapshot() {
           if (n==1) id=v; else if (n==5) dep=v
         }
         if (n==-99 || n<5) next
-        if (id !~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/) next
+        if (id !~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) next
         if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}(-[A-Za-z]{2,5})?-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
           anc = substr(dep, RSTART, RLENGTH)
           if (anc in exc) {
@@ -406,7 +349,7 @@ pull_excerpt() {
       if(n!=-99 && id==a && id!="锚点"){ print e; exit }
     }' "$S_FILE")
   if [ -z "$EXC" ]; then printf '[FAIL] 底册未找到锚点: %s\n' "$ANC" >&2; exit 1; fi
-  SNAP="$DIR/../../prd.txt"
+  SNAP="$DIR/../prd.txt"
   if [ ! -f "$SNAP" ]; then printf '[FAIL] 缺少快照 %s\n' "$SNAP" >&2; exit 1; fi
   NEXC=$(printf '%s' "$EXC" | awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }')
   awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }' "$SNAP" > "$TMPD/snap_norm"
@@ -418,9 +361,12 @@ pull_excerpt() {
 # ---- snapshot：生成 PRD 文本快照（textutil + 引号归一，输出源文件 md5；快照只读，已存在即拒绝）----
 make_snapshot() {
   DOCX="$EXTRA"
-  if [ -z "$DOCX" ]; then printf '用法: bash validate.sh "<需求目录>" snapshot "<需求文档文件名>"\n' >&2; exit 2; fi
-  SRC="$ARG/$DOCX"
-  if [ ! -f "$SRC" ]; then printf '找不到源文件: %s\n' "$SRC" >&2; exit 2; fi
+  if [ -z "$DOCX" ]; then printf '用法: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"\n' >&2; exit 2; fi
+  SRC=""
+  for CAND in "$ARG/$DOCX" "$ARG/prd-doc/$DOCX"; do
+    [ -f "$CAND" ] && { SRC="$CAND"; break; }
+  done
+  if [ -z "$SRC" ]; then printf '找不到源文件: %s（在功能目录及其 prd-doc/ 下查找）\n' "$ARG/$DOCX" >&2; exit 2; fi
   if [ -f "$ARG/prd.txt" ]; then printf 'prd.txt 已存在（快照只读，S1 冻结）；确认重建请先自行移除旧快照\n' >&2; exit 2; fi
   case "$DOCX" in
     *.docx|*.doc)
@@ -455,7 +401,7 @@ extract_tpids() {
       }
       if (n==-99) next
       id=f[1]
-      if (id ~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/ && !seen[id]++) print id > tpids
+      if (id ~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/ && !seen[id]++) print id > tpids
     }
   ' "$P_FILE" >/dev/null
 }
@@ -463,7 +409,7 @@ extract_tpids() {
 # ---- test-case.md 行内校验（格式/唯一/必填/优先级/引用）----
 check_cases() {
   if [ ! -f "$C_FILE" ]; then fail "缺少 $C_FILE"; return; fi
-  OUT=$(awk -F'|' -v tctps="$TCTPS" '
+  OUT=$(awk -F'|' -v tctps="$TCTPS" -v fid="$FNID" '
     /^## / { stop=1 }
     stop { next }
     /^[[:space:]]*\|/ {
@@ -476,14 +422,16 @@ check_cases() {
       }
       if (n==-99) next
       id=f[1]; row++
-      if (id !~ /^TC-[A-Za-z0-9]{1,6}-[0-9]{3,}$/) {
+      if (id !~ /^TC-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) {
         printf "[FAIL] test-case 第%d数据行: TC编号格式非法: %s\n", row, id; bad++
+      } else if (id !~ ("^TC-" fid "-[0-9]{3,}$")) {
+        printf "[FAIL] test-case 第%d数据行: TC功能码与功能目录名不符: %s(本功能 %s)\n", row, id, fid; bad++
       } else if (seen[id]++) {
         printf "[FAIL] test-case 第%d数据行: TC编号重复: %s\n", row, id; bad++
       }
       if (f[2]=="") { printf "[FAIL] test-case 第%d数据行(%s): 标题为空\n", row, id; bad++ }
       if (f[3]=="") { printf "[FAIL] test-case 第%d数据行(%s): 关联TP为空\n", row, id; bad++ }
-      else if (f[3] ~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/) { print f[3] > tctps }
+      else if (f[3] ~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) { print f[3] > tctps }
       else { printf "[FAIL] test-case 第%d数据行(%s): 关联TP格式非法: %s\n", row, id, f[3]; bad++ }
       if (f[4] !~ /^P[0-3]$/) { printf "[FAIL] test-case 第%d数据行(%s): 优先级非法或为空: %s\n", row, id, f[4]; bad++ }
       if (f[5]=="") { printf "[FAIL] test-case 第%d数据行(%s): 前置条件为空\n", row, id; bad++ }
@@ -517,7 +465,7 @@ check_cases() {
           n++
           if (n==1) tp=v; else if (n==3) exc=v
         }
-        if (n!=-99 && tp ~ /^TP-[A-Za-z0-9]{1,6}-[0-9]{3,}$/ && exc!="" && exc !~ /^(—|-)$/) print tp
+        if (n!=-99 && tp ~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/ && exc!="" && exc !~ /^(—|-)$/) print tp
       }
     ' "$C_FILE" | sort -u)
     UNCOVERED_RAW=$(comm -23 <(sort -u "$TPIDS") <(sort -u "$TCTPS") | tr '\n' ' ')
@@ -542,13 +490,13 @@ check_cases() {
 }
 
 case "$TARGET" in
-  test-point.md) check_scope; check_points; check_anchors; check_snapshot ;;
-  test-case.md)  extract_tpids; check_cases ;;
-  scope)         check_scope; check_snapshot ;;
+  test-point)    check_points; check_anchors; check_snapshot ;;
+  test-case)     extract_tpids; check_cases ;;
+  scope)         check_anchors; check_snapshot ;;
   state)         check_state ;;
   pull)          pull_excerpt ;;
   snapshot)      make_snapshot ;;
-  *)             check_scope; check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
+  *)             check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
 esac
 
 printf '\n========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"
