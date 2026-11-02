@@ -7,13 +7,15 @@
 #   scope:    bash validate.sh "<会话目录>/scope.md" scope         # 锚点底册+摘录机验（S1）
 #   state:    bash validate.sh "<会话目录>/state.md" state         # state.md 登记项固定唯一/确认记录格式/CL 编号唯一/指纹格式
 #   pull:     bash validate.sh "<会话目录>/scope.md" pull "<锚点>"  # 输出该锚点底册摘录（先自验命中快照）
-#   snapshot: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"  # 生成 <功能目录>/prd.txt（textutil+引号归一）并输出源文件 md5
+#   snapshot: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"  # 生成 <功能目录>/prd.txt（textutil/pandoc+引号归一）并输出源文件 md5
+#   scan:     bash validate.sh "<会话目录>/scope.md" scan          # 漏锚扫描一键候选（章节锚点覆盖+功能名命中聚合，替代逐词 grep 循环）
 # 目录推导: 会话目录(<uuid>)内取 scope.md; 功能目录(上一级)取 prd.txt 快照与 prd-doc/ 原件;
 #           产物取 <功能目录>/output/test-point/test-point.md 与 output/test-case/test-case.md
 # 退出码: 0 = 全部通过; 1 = 存在 FAIL, 必须修复后重跑; 2 = 用法错误
+# 锚点语法契约: 唯一定义源为 prd-check 锚点规则 1(三种合法形态), 本脚本的 awk 正则为其实现, 两处必须同步修改
 # 功能码: TP/TC 编号功能码直接取平台 bizFunctionId(不注册清单文件), 编号格式为 TP-<功能码>-NNN / TC-<功能码>-NNN
 #        逐行校验编号功能码段必须等于所在功能目录名(防跨功能串号)
-# 摘录逐字机验依赖 <bizFunctionId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 锚点规则 9)
+# 摘录逐字机验依赖 <bizFunctionId>/prd.txt(PRD 文本快照, 生成规则见 prd-check 快照规则)
 # 注意: macOS awk length() 按字节计数, 摘录长度校验用 wc -m
 set -u
 
@@ -28,14 +30,14 @@ pass() { PASSES=$((PASSES+1)); printf '[PASS] %s\n' "$*"; }
 
 if [ -z "$ARG" ]; then
   printf '用法: bash validate.sh "<会话目录>" test-point|test-case（阶段质检；禁止传 all）\n'
-  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <PRD文件名>（生成快照，传功能目录）\n'
+  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <PRD文件名>（生成快照，传功能目录）/ scan（漏锚扫描候选）\n'
   exit 2
 fi
 
 if [ -f "$ARG" ]; then
   DIR=$(dirname "$ARG")
   case "$(basename "$ARG")" in
-    scope.md)      case "$TARGET" in ""|scope) TARGET=scope ;; pull) : ;; *) printf '用法: scope.md 仅支持 scope / pull\n'; exit 2 ;; esac ;;
+    scope.md)      case "$TARGET" in ""|scope) TARGET=scope ;; pull) : ;; scan) : ;; *) printf '用法: scope.md 仅支持 scope / pull / scan\n'; exit 2 ;; esac ;;
     state.md)      case "$TARGET" in ""|state) TARGET=state ;; *) printf '用法: state.md 仅支持 state\n'; exit 2 ;; esac ;;
     *) printf '用法: 阶段质检请传会话目录+模式: bash validate.sh "<会话目录>" test-point|test-case（产物在功能目录 output/ 下，不再按文件直传）\n'; exit 2 ;;
   esac
@@ -59,13 +61,14 @@ TMPD=$(mktemp -d) || exit 2
 TPIDS="$TMPD/tp_ids"    # test-point.md 中全部合法 TP 编号（每行一个）
 TCTPS="$TMPD/tc_tps"   # test-case.md 中全部合法关联 TP（每行一个）
 TPANCH="$TMPD/tp_anchors"  # test-point.md 主表依据列提取的锚点（每行一个）
-: > "$TPIDS"; : > "$TCTPS"; : > "$TPANCH"
+TPPAIRS="$TMPD/tp_pairs"   # (TP编号, 锚点) 对（主表依据列，多锚点逐对，供覆盖双向映射机检）
+: > "$TPIDS"; : > "$TCTPS"; : > "$TPANCH"; : > "$TPPAIRS"
 trap 'rm -rf "$TMPD"' EXIT
 
 # ---- test-point.md 行内校验（格式/唯一/必填/锚点）----
 check_points() {
   if [ ! -f "$P_FILE" ]; then fail "缺少 $P_FILE"; return; fi
-  OUT=$(awk -F'|' -v tpanch="$TPANCH" -v fid="$FNID" '
+  OUT=$(awk -F'|' -v tpanch="$TPANCH" -v tppairs="$TPPAIRS" -v fid="$FNID" '
     /^## / { stop=1 }
     stop { next }
     /^[[:space:]]*\|/ {
@@ -90,10 +93,18 @@ check_points() {
       if (f[3]=="")   { printf "[FAIL] test-point 第%d数据行(%s): 类型为空\n", row, id; bad++ }
       if (f[4]=="")   { printf "[FAIL] test-point 第%d数据行(%s): 分析方法为空\n", row, id; bad++ }
       if (f[5]=="")   { printf "[FAIL] test-point 第%d数据行(%s): 依据为空\n", row, id; bad++ }
-      else if (match(f[5], /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}(-[A-Za-z]{2,5})?-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
-        print substr(f[5], RSTART, RLENGTH) > tpanch
-      } else {
-        printf "[FAIL] test-point 第%d数据行(%s): 依据缺锚点(需 M模块-S章节-P段落 或 PRD原文编号)\n", row, id; bad++
+      else {
+        s=f[5]; gsub(/「[^」]*」/, "", s); gsub(/【[^】]*】/, "", s)   # 去引注原文后扫描锚点，防摘录内数字误配
+        gsub(/TP-[A-Za-z0-9-]+/, "", s); gsub(/TC-[A-Za-z0-9-]+/, "", s); gsub(/CL-[0-9]+/, "", s); gsub(/(^|[^-A-Za-z0-9])Q[0-9]+/, "\\1", s)   # 去非锚点编号 token，防误提取
+        found=0
+        while (match(s, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*)|([0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)/)) {
+          a=substr(s, RSTART, RLENGTH)
+          print a > tpanch
+          print id "\t" a > tppairs
+          found=1
+          s=substr(s, RSTART+RLENGTH)
+        }
+        if (!found) { printf "[FAIL] test-point 第%d数据行(%s): 依据缺锚点(锚点格式不符 prd-check 锚点规则 1 的三种合法形态)\n", row, id; bad++ }
       }
     }
     END { if (row==0) { print "[FAIL] test-point 无有效数据行"; bad++ }; exit (bad ? 1 : 0) }
@@ -140,6 +151,16 @@ check_anchors() {
     fail "scope.md 缺少锚点清单表(或无有效锚点)"
   else
     pass "scope.md 锚点清单底册存在"
+    # 底册锚点格式校验（建册即拦，防 S3 才暴露；语法契约见 prd-check 锚点规则 1）
+    BADANC=$(awk '
+      $0 !~ /^(M[0-9]+-S[0-9]+-P[0-9]+|[A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*|[0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)$/ { printf "%s ", $0; bad++ }
+      END { exit (bad ? 1 : 0) }
+    ' "$ANCH")
+    if [ -n "$BADANC" ]; then
+      fail "底册锚点格式不合规(须符合 prd-check 锚点规则 1 的三种合法形态，禁止自创变体): $BADANC"
+    else
+      pass "底册锚点格式校验通过"
+    fi
     [ -f "$P_FILE" ] || return
     extract_col "$P_FILE" "覆盖对照表" 1 | sort -u > "$COVA"
     D1=$(comm -23 <(sort -u "$TPANCH") "$ANCH" | tr '\n' ' ')
@@ -158,22 +179,68 @@ check_anchors() {
     if [ -n "${D3//[[:space:]]/}" ]; then
       fail "覆盖对照表锚点不在底册(疑似幻觉锚点): $D3"
     fi
+    # 覆盖双向映射机检（覆盖对照表第2列 TP ↔ TP 依据锚点；此类问题脚本捕获，不再依赖质检轮次发现）
+    if [ -s "$TPPAIRS" ]; then
+      OUTC=$(awk -F'|' -v pairs="$TPPAIRS" '
+        BEGIN {
+          while ((getline line < pairs) > 0) {
+            split(line, p, "\t")
+            key=p[2] SUBSEP p[1]
+            tp_anc[key]=1
+          }
+          close(pairs)
+        }
+        /^## / { in_sec = (index($0, "覆盖对照表") > 0) }
+        in_sec && /^[[:space:]]*\|/ {
+          n=0; a=""; tps=""
+          for (i=2; i<NF; i++) {
+            v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+            if (v ~ /^[-:]+$/) { n=-99; break }
+            n++; if (n==1) a=v; else if (n==2) tps=v
+          }
+          if (n==-99 || a=="" || tps=="") next
+          if (a ~ /锚点/ || a ~ /^(—|-)$/) next
+          gsub(/[、，,\/；;[:space:]]+/, " ", tps)
+          m=split(tps, arr, " ")
+          for (j=1; j<=m; j++) {
+            x=arr[j]
+            if (x !~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) continue
+            key=a SUBSEP x
+            if (!(key in tp_anc))
+              { printf "[FAIL] 覆盖对照表: 锚点 %s 声明由 %s 覆盖, 但该 TP 依据未挂锚点 %s\n", a, x, a; bad++ }
+            claimed[a]=claimed[a] " " x
+          }
+        }
+        END {
+          for (k in tp_anc) {
+            split(k, kk, SUBSEP)
+            if (index(" " claimed[kk[1]] " ", " " kk[2] " ") == 0)
+              { printf "[FAIL] 覆盖对照表: TP %s 依据挂锚点 %s, 但覆盖对照表 %s 行未登记该 TP\n", kk[2], kk[1], kk[1]; bad++ }
+          }
+          exit (bad ? 1 : 0)
+        }
+      ' "$P_FILE"); RC=$?
+      printf '%s\n' "$OUTC"
+      NFC=$(printf '%s\n' "$OUTC" | grep -c '^\[FAIL\]')
+      FAILS=$((FAILS + NFC))
+      [ "$RC" -eq 0 ] && pass "覆盖对照表与 TP 依据双向映射校验通过"
+    fi
   fi
 }
 
 # ---- 摘录逐字机验（01 底册摘录 ↔ PRD 快照; TP 依据 ↔ 底册摘录）----
-# 快照生成与降级规则见 prd-quality-check 锚点规则 9; 比对前做空白规范化(含全角空格)
+# 快照生成与降级规则见 prd-check 快照规则; 比对前做空白规范化(含全角空格)
 # 已知坑: macOS awk 在 LC_ALL=UTF-8 下对纯中文串的 == 比较会误判真;
 # 故本函数 awk 一律不设 LC_ALL(走 C locale 字节语义), 中文相等判断用正则, 字符计数只用 wc -m
 check_snapshot() {
   [ -f "$S_FILE" ] || return
   if grep -q '^> 快照机验：跳过' "$S_FILE"; then
-    pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-quality-check 锚点规则 9)"
+    pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-check 快照规则)"
     return
   fi
   SNAP="$DIR/../prd.txt"
   if [ ! -f "$SNAP" ]; then
-    fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-quality-check 锚点规则 9)"
+    fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-check 快照规则)"
     return
   fi
   awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }' "$SNAP" > "$TMPD/snap_norm"
@@ -240,7 +307,9 @@ check_snapshot() {
         }
         if (n==-99 || n<5) next
         if (id !~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) next
-        if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z]{2,5}(-[A-Za-z]{2,5})?-[0-9]{1,5})|([0-9]+(\.[0-9]+)+)/)) {
+        # 注意：此处不剥「」引注——摘录本身就在引注中，是要被校验的对象；只剥非锚点 token（引号内极少出现）
+        gsub(/TP-[A-Za-z0-9-]+/, "", dep); gsub(/TC-[A-Za-z0-9-]+/, "", dep); gsub(/CL-[0-9]+/, "", dep); gsub(/(^|[^-A-Za-z0-9])Q[0-9]+/, "\\1", dep)
+        if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*)|([0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)/)) {
           anc = substr(dep, RSTART, RLENGTH)
           if (anc in exc) {
             c = dep; gsub(/[[:space:]]/, "", c); gsub(/　/, "", c)
@@ -372,8 +441,10 @@ make_snapshot() {
     *.docx|*.doc)
       if command -v textutil >/dev/null 2>&1; then
         textutil -convert txt -stdout "$SRC" | sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" > "$ARG/prd.txt"
+      elif command -v pandoc >/dev/null 2>&1; then
+        pandoc -t plain "$SRC" | sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" > "$ARG/prd.txt"
       else
-        printf 'textutil 不可用（仅 macOS）：请用 pandoc 转文本并自行归一引号后落盘（规则见 prd-quality-check 锚点规则 9）\n' >&2; exit 2
+        printf 'textutil(仅 macOS)与 pandoc 均不可用：Windows 请安装 pandoc，或用其他工具转文本并自行归一引号后落盘（规则见 prd-check 快照规则）\n' >&2; exit 2
       fi ;;
     *.txt|*.md)
       sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" "$SRC" > "$ARG/prd.txt" ;;
@@ -382,6 +453,44 @@ make_snapshot() {
   esac
   H=$(md5 -q "$SRC" 2>/dev/null || md5sum "$SRC" 2>/dev/null | cut -d' ' -f1)
   printf 'prd.txt 已生成: %s/prd.txt\n源文件 md5=%s\n' "$ARG" "$H"
+  exit 0
+}
+
+# ---- scan：漏锚扫描一键候选（章节锚点覆盖 + 功能名命中聚合；机器出候选，判定权在人/质检）----
+run_scan() {
+  if [ ! -f "$S_FILE" ]; then fail "缺少 $S_FILE(锚点底册)"; printf '%s\n' ""; printf '========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"; return 1; fi
+  SNAP="$DIR/../prd.txt"
+  if [ ! -f "$SNAP" ]; then fail "缺少 $SNAP(PRD 文本快照), 无法扫描"; printf '========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"; return 1; fi
+  ANCH="$TMPD/scan_anchors"
+  extract_col "$S_FILE" "锚点清单" 1 | sort -u > "$ANCH"
+  ANCH_N=$(grep -c . "$ANCH" 2>/dev/null || echo 0)
+  FEAT=$(head -n 1 "$S_FILE" | sed -e 's/^#[[:space:]]*//' -e 's/锚点底册.*//' -e 's/[[:space:]]*$//')
+  printf '== 章节锚点覆盖（底册 %s 条锚点；状态由机器判定，三判定权在质检/经理）==\n' "$ANCH_N"
+  awk -v anch="$ANCH" '
+    function sec_status(num,  a, cov, part) {
+      cov=0; part=0
+      while ((getline a < anch) > 0) {
+        if (a==num) cov++
+        else if (index(a, num ".")==1 || index(num, a ".")==1) part++
+      }
+      close(anch)
+      if (cov>0) return "已建锚"
+      if (part>0) return "部分覆盖(仅子节/父节有锚,人工复核)"
+      return "疑似缺锚候选"
+    }
+    /^[[:space:]]*#{1,6}[[:space:]]/ {
+      line=$0; num=""
+      if (match(line, /[0-9]+(\.[0-9]+)*/)) num=substr(line, RSTART, RLENGTH)
+      sub(/^[[:space:]]*#+[[:space:]]*/, "", line)
+      if (num=="") { printf "L%-5d [无编号,人工判定] %s\n", NR, line; next }
+      printf "L%-5d [%s] %s\n", NR, sec_status(num), line
+    }
+  ' "$SNAP"
+  printf '\n== 功能名命中行（检索词: %s；按章节聚合判定，最多显示 40 行）==\n' "$FEAT"
+  if [ -n "$FEAT" ]; then
+    grep -nF -- "$FEAT" "$SNAP" | head -40 || printf '(无命中)\n'
+  fi
+  printf '\n后续: 仅对「疑似缺锚候选/无编号/部分覆盖」行做三判定(已建锚/疑似缺锚/范围外)，写入报告附录。\n'
   exit 0
 }
 
@@ -454,7 +563,7 @@ check_cases() {
     else
       pass "TC→TP 引用完整性校验通过"
     fi
-    # TP 全覆盖豁免: test-case.md 覆盖对照表显式声明未覆盖原因(非空且非「—」占位)的 TP 不计 FAIL(规则见 self-review-checklist)
+    # TP 全覆盖豁免: test-case.md 覆盖对照表显式声明未覆盖原因(非空且非「—」占位)的 TP 不计 FAIL(规则见本 skill 核验清单)
     EXEMPT=$(awk -F'|' '
       /^## / { in_sec = (index($0, "覆盖对照表") > 0) }
       in_sec && /^[[:space:]]*\|/ {
@@ -496,6 +605,7 @@ case "$TARGET" in
   state)         check_state ;;
   pull)          pull_excerpt ;;
   snapshot)      make_snapshot ;;
+  scan)          run_scan ;;
   *)             check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
 esac
 
