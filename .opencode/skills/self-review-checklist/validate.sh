@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
-# validate.sh — 测试设计产物硬校验（workspace 新运行时结构，零依赖，bash 3.2 兼容）
-# 结构: runtime_<projectId>/file/<bizFunctionId>/<uuid>/（会话目录）+ <bizFunctionId>/output/test-point|test-case/（共享产物）
+# validate.sh — 产出与状态侧硬校验（零依赖，bash 3.2 兼容）
+# 归属: self-review-checklist（规则唯一权威源见 SKILL.md）
+# 结构: <会话目录>/<uuid>/ + <功能目录>/output/test-point|test-case/
 # 用法: bash validate.sh "<会话目录>" test-point|test-case   （阶段质检，禁止传 all）
 #       all 仅限人工调试: bash validate.sh "<会话目录>" all
-# 辅助模式（S1/编排用，摘录一律程序化提取，禁止模型手抄）:
-#   scope:    bash validate.sh "<会话目录>/scope.md" scope         # 锚点底册+摘录机验（S1）
-#   state:    bash validate.sh "<会话目录>/state.md" state         # state.md 登记项固定唯一/确认记录格式/CL 编号唯一/指纹格式
-#   pull:     bash validate.sh "<会话目录>/scope.md" pull "<锚点>"  # 输出该锚点底册摘录（先自验命中快照）
-#   snapshot: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"  # 生成 <功能目录>/prd.txt（textutil/pandoc+引号归一）并输出源文件 md5
-#   scan:     bash validate.sh "<会话目录>/scope.md" scan          # 漏锚扫描一键候选（章节锚点覆盖+功能名命中聚合，替代逐词 grep 循环）
-# 目录推导: 会话目录(<uuid>)内取 scope.md; 功能目录(上一级)取 prd.txt 快照与 prd-doc/ 原件;
-#           产物取 <功能目录>/output/test-point/test-point.md 与 output/test-case/test-case.md
+#   state:    bash validate.sh "<会话目录>/state.md" state    # state.md 登记项固定唯一/确认记录格式/CL 编号唯一/指纹格式
+# 需求与证据侧校验（快照/底册/摘录提取/漏锚扫描）用 prd-quality-check/validate-prd.sh，本脚本不依赖它
 # 退出码: 0 = 全部通过; 1 = 存在 FAIL, 必须修复后重跑; 2 = 用法错误
-# 锚点语法契约: 唯一定义源为 prd-check 锚点规则 1(三种合法形态), 本脚本的 awk 正则为其实现, 两处必须同步修改
 # 功能码: TP/TC 编号功能码直接取平台 bizFunctionId(不注册清单文件), 编号格式为 TP-<功能码>-NNN / TC-<功能码>-NNN
 #        逐行校验编号功能码段必须等于所在功能目录名(防跨功能串号)
-# 摘录逐字机验依赖 <bizFunctionId>/prd.txt(PRD 文本快照, 生成规则见 prd-check 快照规则)
+# 锚点语法契约: 唯一定义源为 prd-quality-check 锚点规则 1，本脚本的 awk 正则为其实现，两处必须同步修改
+# 摘录逐字机验依赖 <bizFunctionId>/prd.txt(PRD 文本快照, 生成规则见 prd-quality-check 快照规则)
+# 摘录比对口径（空白归一 + 剥「」摘录壳 + 长度用 wc -m）与 prd-quality-check/validate-prd.sh 的 check_snapshot 是同一契约的两份副本,
+#               改一处必须同步另一处（曾因只改需求侧, 导致同一份底册两个脚本结论相反: 需求侧 PASS、产物侧全量 FAIL）
 # 注意: macOS awk length() 按字节计数, 摘录长度校验用 wc -m
 set -u
 
@@ -30,22 +27,21 @@ pass() { PASSES=$((PASSES+1)); printf '[PASS] %s\n' "$*"; }
 
 if [ -z "$ARG" ]; then
   printf '用法: bash validate.sh "<会话目录>" test-point|test-case（阶段质检；禁止传 all）\n'
-  printf '辅助: scope（底册校验）/ state（状态校验）/ pull <锚点>（提取摘录）/ snapshot <PRD文件名>（生成快照，传功能目录）/ scan（漏锚扫描候选）\n'
+  printf '辅助: state（状态校验，传 state.md）；需求与证据侧校验用 prd-quality-check/validate-prd.sh\n'
   exit 2
 fi
 
 if [ -f "$ARG" ]; then
   DIR=$(dirname "$ARG")
   case "$(basename "$ARG")" in
-    scope.md)      case "$TARGET" in ""|scope) TARGET=scope ;; pull) : ;; scan) : ;; *) printf '用法: scope.md 仅支持 scope / pull / scan\n'; exit 2 ;; esac ;;
     state.md)      case "$TARGET" in ""|state) TARGET=state ;; *) printf '用法: state.md 仅支持 state\n'; exit 2 ;; esac ;;
     *) printf '用法: 阶段质检请传会话目录+模式: bash validate.sh "<会话目录>" test-point|test-case（产物在功能目录 output/ 下，不再按文件直传）\n'; exit 2 ;;
   esac
 elif [ -d "$ARG" ]; then
   DIR=${ARG%/}
   case "$TARGET" in
-    test-point|test-case|all|snapshot) : ;;
-    *) printf '用法: 传目录须带模式: test-point / test-case（阶段质检）、snapshot（快照生成）、all（仅人工调试）\n'; exit 2 ;;
+    test-point|test-case|all) : ;;
+    *) printf '用法: 传目录须带模式: test-point / test-case（阶段质检）、all（仅人工调试）\n'; exit 2 ;;
   esac
 else
   printf '用法: bash validate.sh "<会话目录>" test-point|test-case；辅助模式见脚本头注释\n'
@@ -97,14 +93,14 @@ check_points() {
         s=f[5]; gsub(/「[^」]*」/, "", s); gsub(/【[^】]*】/, "", s)   # 去引注原文后扫描锚点，防摘录内数字误配
         gsub(/TP-[A-Za-z0-9-]+/, "", s); gsub(/TC-[A-Za-z0-9-]+/, "", s); gsub(/CL-[0-9]+/, "", s); gsub(/(^|[^-A-Za-z0-9])Q[0-9]+/, "\\1", s)   # 去非锚点编号 token，防误提取
         found=0
-        while (match(s, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*)|([0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)/)) {
+        while (match(s, /[A-Za-z0-9]+(-[A-Za-z0-9.]+)+|[A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*|[0-9]+(\.[0-9]+)+/)) {
           a=substr(s, RSTART, RLENGTH)
           print a > tpanch
           print id "\t" a > tppairs
           found=1
           s=substr(s, RSTART+RLENGTH)
         }
-        if (!found) { printf "[FAIL] test-point 第%d数据行(%s): 依据缺锚点(锚点格式不符 prd-check 锚点规则 1 的三种合法形态)\n", row, id; bad++ }
+        if (!found) { printf "[FAIL] test-point 第%d数据行(%s): 依据缺锚点(锚点格式不符 prd-quality-check 锚点规则 1 的锚点语法)\n", row, id; bad++ }
       }
     }
     END { if (row==0) { print "[FAIL] test-point 无有效数据行"; bad++ }; exit (bad ? 1 : 0) }
@@ -151,13 +147,13 @@ check_anchors() {
     fail "scope.md 缺少锚点清单表(或无有效锚点)"
   else
     pass "scope.md 锚点清单底册存在"
-    # 底册锚点格式校验（建册即拦，防 S3 才暴露；语法契约见 prd-check 锚点规则 1）
+    # 底册锚点格式校验（建册即拦，不留到生成阶段才暴露；语法契约见 prd-quality-check 锚点规则 1）
     BADANC=$(awk '
-      $0 !~ /^(M[0-9]+-S[0-9]+-P[0-9]+|[A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*|[0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)$/ { printf "%s ", $0; bad++ }
+      $0 !~ /^[A-Za-z0-9]+(\.[0-9]+)*(-[A-Za-z0-9]+(\.[0-9]+)*)*$/ || $0 !~ /[0-9]/ { printf "%s ", $0; bad++ }
       END { exit (bad ? 1 : 0) }
     ' "$ANCH")
     if [ -n "$BADANC" ]; then
-      fail "底册锚点格式不合规(须符合 prd-check 锚点规则 1 的三种合法形态，禁止自创变体): $BADANC"
+      fail "底册锚点格式不合规(须符合 prd-quality-check 锚点规则 1 的锚点语法：字母/数字/小数点组成 1~4 段、段间连字符、整串含数字): $BADANC"
     else
       pass "底册锚点格式校验通过"
     fi
@@ -229,18 +225,18 @@ check_anchors() {
 }
 
 # ---- 摘录逐字机验（01 底册摘录 ↔ PRD 快照; TP 依据 ↔ 底册摘录）----
-# 快照生成与降级规则见 prd-check 快照规则; 比对前做空白规范化(含全角空格)
+# 快照生成与降级规则见 prd-quality-check 快照规则; 比对前做空白规范化(含全角空格)
 # 已知坑: macOS awk 在 LC_ALL=UTF-8 下对纯中文串的 == 比较会误判真;
 # 故本函数 awk 一律不设 LC_ALL(走 C locale 字节语义), 中文相等判断用正则, 字符计数只用 wc -m
 check_snapshot() {
   [ -f "$S_FILE" ] || return
   if grep -q '^> 快照机验：跳过' "$S_FILE"; then
-    pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-check 快照规则)"
+    pass "快照机验: scope.md 已声明降级, 跳过(规则见 prd-quality-check 快照规则)"
     return
   fi
   SNAP="$DIR/../prd.txt"
   if [ ! -f "$SNAP" ]; then
-    fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-check 快照规则)"
+    fail "缺少 $SNAP(PRD 文本快照), 无法机验摘录(生成规则见 prd-quality-check 快照规则)"
     return
   fi
   awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }' "$SNAP" > "$TMPD/snap_norm"
@@ -260,6 +256,10 @@ check_snapshot() {
       if (a ~ /^锚点$/ || e ~ /^原文摘录$/) next
       if (seen[a]++) { printf "[FAIL] scope 锚点清单: 锚点重复: %s\n", a; bad++; next }
       c=e; gsub(/[[:space:]]/, "", c); gsub(/　/, "", c)
+      # 剥摘录壳：底册按 skill 约定用「」包裹，壳不参与逐字比对与长度计
+      # （口径与 prd-quality-check/validate-prd.sh 完全一致，两处必须同步修改）
+      sub(/^「/, "", c); sub(/」$/, "", c)
+      sub(/^"/, "", c); sub(/"$/, "", c)
       printf "%s\t%s\n", a, c > out
     }
     END { exit (bad ? 1 : 0) }
@@ -277,8 +277,13 @@ check_snapshot() {
       SNAP_OK=0
     fi
     if ! grep -qF -- "$EXC" "$TMPD/snap_norm"; then
-      fail "scope 锚点 $ANC: 摘录未逐字命中 PRD 快照"
+      fail "scope 锚点 $ANC: 摘录未逐字命中 PRD 快照（必须逐字符复制原文，含 markdown 标记/列表符号/表格竖线；不可摘要或改写）"
       SNAP_OK=0
+      P8=$(printf '%s' "$EXC" | cut -c1-8)
+      if [ ${#P8} -ge 4 ]; then
+        HINT=$(grep -nF -- "$P8" "$SNAP" | head -3)
+        [ -n "$HINT" ] && printf '         候选原文行(逐字复制):\n%s\n' "$HINT"
+      fi
     fi
   done < "$TMPD/exc_pairs"
   if [ -s "$TMPD/exc_pairs" ] && [ "$SNAP_OK" -eq 1 ]; then
@@ -309,10 +314,11 @@ check_snapshot() {
         if (id !~ /^TP-[A-Za-z0-9_-]{1,20}-[0-9]{3,}$/) next
         # 注意：此处不剥「」引注——摘录本身就在引注中，是要被校验的对象；只剥非锚点 token（引号内极少出现）
         gsub(/TP-[A-Za-z0-9-]+/, "", dep); gsub(/TC-[A-Za-z0-9-]+/, "", dep); gsub(/CL-[0-9]+/, "", dep); gsub(/(^|[^-A-Za-z0-9])Q[0-9]+/, "\\1", dep)
-        if (match(dep, /(M[0-9]+-S[0-9]+-P[0-9]+)|([A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*(-[A-Za-z0-9]+)*)|([0-9]+(\.[0-9]+)+(-[0-9]+[a-z]?)?|[0-9]+-[0-9]+[a-z]?)/)) {
+        if (match(dep, /[A-Za-z0-9]+(-[A-Za-z0-9.]+)+|[A-Za-z][A-Za-z0-9]*[0-9][A-Za-z0-9]*|[0-9]+(\.[0-9]+)+/)) {
           anc = substr(dep, RSTART, RLENGTH)
           if (anc in exc) {
             c = dep; gsub(/[[:space:]]/, "", c); gsub(/　/, "", c)
+            gsub(/「/, "", c); gsub(/」/, "", c)
             if (index(c, exc[anc]) == 0)
               printf "[FAIL] test-point %s: 依据未含底册摘录(锚点 %s)\n", id, anc
           }
@@ -332,6 +338,8 @@ check_state() {
   if [ ! -f "$ST" ]; then fail "缺少 $ST(state.md)"; return; fi
   OUT=$(awk -F'|' '
     function trim(s){gsub(/^[[:space:]]+|[[:space:]]+$/,"",s);return s}
+    /^##[[:space:]]*流转记录/ { in_flow=1; next }   # 流转记录表不是登记项，整表跳过
+    in_flow && /^[[:space:]]*\|/ { next }
     /^[[:space:]]*\|/ {
       k=""; val=""; n=0
       for(i=2;i<NF;i++){v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); n++; if(n==1)k=v; else val=val v}
@@ -340,9 +348,10 @@ check_state() {
       keys[++c]=k; vals[c]=val
     }
     END{
-      nv=split("当前状态|产物条目数|PRD 指纹|派发会话|质检轮次|S6 缺口登记|确认记录|挂起/降级|变更登记", vocab, "|")
+      nv=split("产物条目数|PRD 指纹|派发会话|质检轮次|S6 缺口登记|确认记录|挂起/降级|变更登记", vocab, "|")
       for(i=1;i<=c;i++){
         ok=0
+        if(keys[i]=="当前阶段" || keys[i]=="当前状态") ok=1
         for(j=1;j<=nv;j++) if(keys[i]==vocab[j]) ok=1
         if(!ok){ printf "[FAIL] state 第%d行: 登记项不在固定词汇表: %s\n", i, keys[i]; bad++ }
         for(j=i+1;j<=c;j++) if(keys[i]==keys[j]){ printf "[FAIL] state: 登记项重复: %s\n", keys[i]; bad++ }
@@ -352,6 +361,11 @@ check_state() {
         for(i=1;i<=c;i++) if(keys[i]==vocab[j]) found=1
         if(!found){ printf "[FAIL] state: 缺少固定登记项: %s\n", vocab[j]; bad++ }
       }
+      # 当前阶段/当前状态 二选一（兼容两种命名，不得同时出现）
+      n_cur=0
+      for(i=1;i<=c;i++) if(keys[i]=="当前阶段" || keys[i]=="当前状态") n_cur++
+      if(n_cur==0){ printf "[FAIL] state: 缺少固定登记项: 当前阶段\n"; bad++ }
+      else if(n_cur>1){ printf "[FAIL] state: 当前阶段与当前状态只能保留其一\n"; bad++ }
       exit (bad?1:0)
     }' "$ST"); RC=$?
   printf '%s\n' "$OUT"
@@ -405,96 +419,6 @@ check_state() {
     fail "state PRD 指纹行须含 md5=<32位十六进制>"
   fi
 }
-
-# ---- pull：按锚点提取底册摘录（自验命中快照后输出到 stdout，供程序化填充，禁止手抄）----
-pull_excerpt() {
-  ANC="$EXTRA"
-  if [ -z "$ANC" ]; then printf '用法: bash validate.sh "<会话目录>/scope.md" pull "<锚点>"\n' >&2; exit 2; fi
-  EXC=$(awk -F'|' -v a="$ANC" '
-    /^## /{in_sec=(index($0,"锚点清单")>0)}
-    in_sec && /^[[:space:]]*\|/ {
-      n=0; id=""; e=""
-      for(i=2;i<NF;i++){v=$i; gsub(/^[[:space:]]+|[[:space:]]+$/,"",v); if(v ~ /^[-:]+$/){n=-99;break} n++; if(n==1)id=v; else if(n==3)e=v}
-      if(n!=-99 && id==a && id!="锚点"){ print e; exit }
-    }' "$S_FILE")
-  if [ -z "$EXC" ]; then printf '[FAIL] 底册未找到锚点: %s\n' "$ANC" >&2; exit 1; fi
-  SNAP="$DIR/../prd.txt"
-  if [ ! -f "$SNAP" ]; then printf '[FAIL] 缺少快照 %s\n' "$SNAP" >&2; exit 1; fi
-  NEXC=$(printf '%s' "$EXC" | awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }')
-  awk '{ gsub(/[[:space:]]/, ""); gsub(/　/, ""); printf "%s", $0 }' "$SNAP" > "$TMPD/snap_norm"
-  if ! grep -qF -- "$NEXC" "$TMPD/snap_norm"; then printf '[FAIL] 摘录未逐字命中快照: %s\n' "$ANC" >&2; exit 1; fi
-  printf '%s\n' "$EXC"
-  exit 0
-}
-
-# ---- snapshot：生成 PRD 文本快照（textutil + 引号归一，输出源文件 md5；快照只读，已存在即拒绝）----
-make_snapshot() {
-  DOCX="$EXTRA"
-  if [ -z "$DOCX" ]; then printf '用法: bash validate.sh "<功能目录>" snapshot "<PRD 文件名>"\n' >&2; exit 2; fi
-  SRC=""
-  for CAND in "$ARG/$DOCX" "$ARG/prd-doc/$DOCX"; do
-    [ -f "$CAND" ] && { SRC="$CAND"; break; }
-  done
-  if [ -z "$SRC" ]; then printf '找不到源文件: %s（在功能目录及其 prd-doc/ 下查找）\n' "$ARG/$DOCX" >&2; exit 2; fi
-  if [ -f "$ARG/prd.txt" ]; then printf 'prd.txt 已存在（快照只读，S1 冻结）；确认重建请先自行移除旧快照\n' >&2; exit 2; fi
-  case "$DOCX" in
-    *.docx|*.doc)
-      if command -v textutil >/dev/null 2>&1; then
-        textutil -convert txt -stdout "$SRC" | sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" > "$ARG/prd.txt"
-      elif command -v pandoc >/dev/null 2>&1; then
-        pandoc -t plain "$SRC" | sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" > "$ARG/prd.txt"
-      else
-        printf 'textutil(仅 macOS)与 pandoc 均不可用：Windows 请安装 pandoc，或用其他工具转文本并自行归一引号后落盘（规则见 prd-check 快照规则）\n' >&2; exit 2
-      fi ;;
-    *.txt|*.md)
-      sed -e 's/“/"/g' -e 's/”/"/g' -e "s/‘/'/g" -e "s/’/'/g" "$SRC" > "$ARG/prd.txt" ;;
-    *)
-      printf '不支持的快照源格式: %s（支持 docx/doc/txt/md；PDF/图片按锚点规则 9 降级声明）\n' "$DOCX" >&2; exit 2 ;;
-  esac
-  H=$(md5 -q "$SRC" 2>/dev/null || md5sum "$SRC" 2>/dev/null | cut -d' ' -f1)
-  printf 'prd.txt 已生成: %s/prd.txt\n源文件 md5=%s\n' "$ARG" "$H"
-  exit 0
-}
-
-# ---- scan：漏锚扫描一键候选（章节锚点覆盖 + 功能名命中聚合；机器出候选，判定权在人/质检）----
-run_scan() {
-  if [ ! -f "$S_FILE" ]; then fail "缺少 $S_FILE(锚点底册)"; printf '%s\n' ""; printf '========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"; return 1; fi
-  SNAP="$DIR/../prd.txt"
-  if [ ! -f "$SNAP" ]; then fail "缺少 $SNAP(PRD 文本快照), 无法扫描"; printf '========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"; return 1; fi
-  ANCH="$TMPD/scan_anchors"
-  extract_col "$S_FILE" "锚点清单" 1 | sort -u > "$ANCH"
-  ANCH_N=$(grep -c . "$ANCH" 2>/dev/null || echo 0)
-  FEAT=$(head -n 1 "$S_FILE" | sed -e 's/^#[[:space:]]*//' -e 's/锚点底册.*//' -e 's/[[:space:]]*$//')
-  printf '== 章节锚点覆盖（底册 %s 条锚点；状态由机器判定，三判定权在质检/经理）==\n' "$ANCH_N"
-  awk -v anch="$ANCH" '
-    function sec_status(num,  a, cov, part) {
-      cov=0; part=0
-      while ((getline a < anch) > 0) {
-        if (a==num) cov++
-        else if (index(a, num ".")==1 || index(num, a ".")==1) part++
-      }
-      close(anch)
-      if (cov>0) return "已建锚"
-      if (part>0) return "部分覆盖(仅子节/父节有锚,人工复核)"
-      return "疑似缺锚候选"
-    }
-    /^[[:space:]]*#{1,6}[[:space:]]/ {
-      line=$0; num=""
-      if (match(line, /[0-9]+(\.[0-9]+)*/)) num=substr(line, RSTART, RLENGTH)
-      sub(/^[[:space:]]*#+[[:space:]]*/, "", line)
-      if (num=="") { printf "L%-5d [无编号,人工判定] %s\n", NR, line; next }
-      printf "L%-5d [%s] %s\n", NR, sec_status(num), line
-    }
-  ' "$SNAP"
-  printf '\n== 功能名命中行（检索词: %s；按章节聚合判定，最多显示 40 行）==\n' "$FEAT"
-  if [ -n "$FEAT" ]; then
-    grep -nF -- "$FEAT" "$SNAP" | head -40 || printf '(无命中)\n'
-  fi
-  printf '\n后续: 仅对「疑似缺锚候选/无编号/部分覆盖」行做三判定(已建锚/疑似缺锚/范围外)，写入报告附录。\n'
-  exit 0
-}
-
-# ---- 从 test-point.md 提取全部合法且唯一的 TP 编号（供引用校验）----
 extract_tpids() {
   [ -f "$P_FILE" ] || return 0
   awk -F'|' -v tpids="$TPIDS" '
@@ -601,13 +525,10 @@ check_cases() {
 case "$TARGET" in
   test-point)    check_points; check_anchors; check_snapshot ;;
   test-case)     extract_tpids; check_cases ;;
-  scope)         check_anchors; check_snapshot ;;
   state)         check_state ;;
-  pull)          pull_excerpt ;;
-  snapshot)      make_snapshot ;;
-  scan)          run_scan ;;
   *)             check_points; check_anchors; check_snapshot; extract_tpids; check_cases ;;
 esac
 
 printf '\n========== 校验汇总: PASS=%d FAIL=%d ==========\n' "$PASSES" "$FAILS"
 if [ "$FAILS" -eq 0 ]; then exit 0; else exit 1; fi
+
