@@ -10,11 +10,11 @@
 | `.opencode/agents/test-designer.md` | 生成 agent（subagent）：S3 测试点生成、S7 用例生成、S4/S8 产物级修复；只生成修复、不质检、不与用户直接交互 |
 | `.opencode/agents/test-qa-expert.md` | 质检 agent（subagent）：S2 测试点资料质检、S4 测试点质检、S6 测试用例资料质检、S8 测试用例质检；只检不修、不与用户直接交互 |
 | `.opencode/skills/test-analysis-methods/` | 测试分析方法唯一权威源：方法选用矩阵 + 各方法要点 + 发散-收敛工作法 + 银行/Web/接口专项检查单（S3 生成、S8 领域复核） |
-| `.opencode/skills/prd-quality-check/` | 需求与证据唯一权威源：锚点规则（锚点语法/粒度/摘录逐字节抄原文/去重/引用链）+ 快照规则 + PRD 五维质检 + 矛盾检测种子词表 + 完备性扫描 + prd-check 报告模板 + **validate-prd.sh**（snapshot/scope/pull/scan/find/line） |
+| `.opencode/skills/prd-quality-check/` | 需求与证据唯一权威源：锚点规则（锚点语法/粒度/摘录逐字节抄原文/去重/引用链）+ 快照规则 + PRD 五维质检 + 矛盾检测种子词表 + 完备性扫描 + prd-check 报告模板 + **validate-prd.sh**（snapshot/scope/scan/find/line/cat） |
 | `.opencode/skills/tdd-quality-check/` | 资料输入模型唯一权威源（资料目录/必需性/可用性判定/按用途输入组合）+ 用例生成资料检查 + 材料专项项 + design-check 报告模板（S2/S6 资料、S3/S7 取料） |
 | `.opencode/skills/test-point-spec/` | 测试点唯一权威源：定义与三条硬标准 + 命名 + 字段 + 编号通用约定 + 清单模板与变更规则（S3 生成、S4 核验） |
 | `.opencode/skills/test-case-spec/` | 测试用例唯一权威源：定义 + 十字段与质量标准（含用例类型归类）+ 清单模板 + 变更规则（S7 生成、S8 核验） |
-| `.opencode/skills/self-review-checklist/` | 产出核验与结论口径唯一权威源：TP/TC 核验清单 + 问题分级与处置方 + 表达与报告规范（表达四原则/术语白名单/报告瘦身）+ **validate.sh**（test-point/test-case/state） |
+| `.opencode/skills/self-review-checklist/` | 产出核验与结论口径唯一权威源：TP/TC 核验清单 + 问题分级与处置方 + 表达与报告规范（表达四原则/术语白名单/报告瘦身）+ **validate.sh**（test-point/test-case/state/hash） |
 | `workspace/runtime_<项目>/file/` | 运行时工作空间（结构契约见 `DESIGN/工作空间目录结构.md`）：业务功能目录 `<bizFunctionId>/`（prd-doc/develop-docs/domain-knowledge/asset-library/code 软链接或原件只读输入 + prd.txt 快照 + output/ 共享产物 test-point、test-case）+ 会话目录 `<bizFunctionId>/<uuid>/`（input/ 澄清附件 + scope.md 底册、state.md 状态 + prd-quality-check、tp-check、design-check、tc-check 四份质检报告）；目录骨架用户预先创建，agent 不建目录 |
 | `DESIGN.md` | 设计文档：面向团队的工作流与核心要素综述 |
 | `DESIGN/PRD编写约束要求.md` | 需求侧 PRD 编写与交稿自检约束（供随需求模板下发） |
@@ -32,7 +32,7 @@
 3. **表格列序是校验契约**：test-point / test-case 清单模板的列顺序不得调整（validate.sh 按列序校验）
 4. **强确认协议**：门禁仅接受 `通过` / `调整@<编号> <说明>` / `退回` 三种答复；Blocker 带风险推进须 `通过 + 阶段名` 二次确认；门禁转移语义见 test-manager 状态机
 5. **产物只写 workspace/ 运行时目录**：工作空间目录骨架与输入材料由用户预先准备好，agent 不创建、不删除目录；缺少目录、必需 PRD 或 S6 必需设计时暂停请用户补齐；输入材料（prd-doc/、develop-docs/domain-knowledge/asset-library/code、会话 input/）一律只读，agent edit 权限已按写权限矩阵按角色收窄至产物/报告/状态文件，输入材料写入默认 ask；PRD 版本一经 S1 确定全流程锁定，暂不支持修改 PRD 文件（澄清/补充说明除外，且仅登记不落原件）
-6. **机械校验分层执行（两个脚本，按职责隔离、互不依赖）**：`prd-quality-check/validate-prd.sh` 负责需求与证据侧（`snapshot` 快照生成、`scope` 底册与摘录机验、`pull` 取摘录、`scan` 漏锚候选、`find`/`line` 取快照原文供逐字节抄写）；`self-review-checklist/validate.sh` 负责产出与状态侧（`test-point`/`test-case` 阶段质检、`state` 状态文件）。S4/S8 质检 subagent 必须对最终产物运行 `test-point`/`test-case`（以会话目录为入口，退出码非 0 禁止定稿；产物位于功能目录 output/ 对应子目录）；设计 subagent 交稿前自查并返回 SHA-256，经理只在指纹不符或缺少有效自查记录时补跑，避免重复校验。**锚点摘录必须逐字符复制 PRD 快照原文**（用 `find` 定位 + `line` 取回原文，禁止凭记忆手写；markdown 标记、列表符号、表格竖线一律原样保留）
+6. **机械校验分层执行（两个脚本，按职责隔离、互不依赖）**：`prd-quality-check/validate-prd.sh` 负责需求与证据侧（`snapshot` 快照生成、`scope` 底册机验、`scan` 漏锚候选、`find`/`line`/`cat` 定位快照原文）；`self-review-checklist/validate.sh` 负责产出与状态侧（`test-point`/`test-case` 阶段质检、`state` 状态文件、`hash` 产物 SHA-256）。S4/S8 质检 subagent 必须对最终产物运行 `test-point`/`test-case`（以会话目录为入口，退出码非 0 禁止定稿；产物位于功能目录 output/ 对应子目录）；设计 subagent 交稿机验并返回 SHA-256，经理只在指纹不符或缺少有效机验记录时补跑，避免重复校验。**原文摘录由模型从 PRD 已读原文摘取**（≤40 字代表性原句，忠实原文不得摘要改写；TP 依据列格式为「锚点；摘录」，脚本按此提取锚点）
 7. **表达四原则**：精炼忌冗长、准确忌歧义、浅显易懂忌黑话术语、边界明确忌模棱两可；面向用户的一切对话与产物正文均适用，允许术语仅限框架已定义术语与 PRD 原文用词；完整规范（含术语白名单、禁用口语变体、问题描述句式、报告瘦身铁律）见 self-review-checklist「表达与报告规范」
 8. **设计文档同步**：修改 `.opencode/agents/` 或任何 `.opencode/skills/` 时，必须同步更新 `DESIGN.md` 对应章节，保持文档与实现一致；仅改 `workspace/` 运行时产物或 `DESIGN/` 历史资料不触发同步
 9. **分层职责（防耦合）**：agent 文件只管流程编排、阶段门禁与状态管理；领域知识（定义、判据、检查单、模板）一律下沉对应 skill 并以其为唯一权威源。跨层与 skill 之间只做指针引用（「规则见 <skill 名>」），禁止复述对方内容；权威源缺失的知识必须先落到 skill 再引用

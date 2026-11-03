@@ -11,7 +11,7 @@ workspace/runtime_<项目>/
 └── file/
     └── <bizFunctionId>/                # 业务功能目录（一次流程一个业务功能，命名用业务功能编号；TP/TC 编号功能码由该编号直接派生）
         ├── prd-doc/                    # 【软链接或原件】PRD，只读；保留原文件名
-        ├── prd.txt                     # PRD 文本快照（首次 S1 生成于本功能目录，摘录机验基准）
+        ├── prd.txt                     # PRD 文本快照（首次 S1 生成于本功能目录，锚点来源校验与摘录抄写的字符基准）
         ├── develop-docs/               # 【软链接】项目开发设计：fe-design/、be-design/（适用时 S6 必需，无界面功能由经理判定豁免）、db-design/（可选）
         ├── domain-knowledge/           # 【软链接】领域知识（S2 可选）
         ├── asset-library/              # 【软链接】逆向文档/功能知识/存量测试点/存量测试用例（可选）
@@ -39,21 +39,28 @@ workspace/runtime_<项目>/
 
 骨架与输入材料由用户/平台程序预先准备（旧 `runtime_星云风险管理` 已作废删除，新骨架待按上表重建；PRD、前端/后端设计等原件以软链接或原件放入对应位置）。`prd.txt`、`scope.md`、`state.md` 与四份质检报告、`output/` 产物由 agent 流程生成，目录本身不建。
 
-## validate.sh 调用（会话目录为入口）
+## 脚本调用（两个脚本按职责隔离）
 
 ```bash
-# S4 测试点质检 / S8 用例质检（产物自动取自功能目录 output/）
+# self-review-checklist/validate.sh —— 产出与状态侧（会话目录为入口）
+# S3/S7 产物机验（产物自动取自功能目录 output/）
 bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>" test-point
 bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>" test-case
-
-# S1 底册校验 / 状态校验 / 摘录提取
-bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>/scope.md" scope
+# 状态文件校验 / 产物 SHA-256
 bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>/state.md" state
-bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>/scope.md" pull "<锚点>"
+bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>" hash test-point
 
+# prd-quality-check/validate-prd.sh —— 需求与证据侧
 # 快照生成（传功能目录，需源文件在 <bizFunctionId>/ 或 <bizFunctionId>/prd-doc/ 下）
-bash .opencode/skills/self-review-checklist/validate.sh "workspace/runtime_<项目>/file/<bizFunctionId>" snapshot "<PRD 文件名.docx>"
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>" snapshot "<PRD 文件名.docx>"
+# 底册机验 / 漏锚扫描（传会话目录 scope.md）
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>/scope.md" scope
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>/<uuid>/scope.md" scan
+# 快照原文定位（传功能目录）
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>" find "<关键词>"
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>" line <行号>
+bash .opencode/skills/prd-quality-check/validate-prd.sh "workspace/runtime_<项目>/file/<bizFunctionId>" cat
 ```
 
 - 自动推导：会话目录取 `scope.md`；功能目录取 `prd.txt`；产物取 `output/test-point|test-case/`
-- `all` 仅限人工调试，禁止用于阶段质检
+- `all`（validate.sh）仅限人工调试，禁止用于阶段质检
